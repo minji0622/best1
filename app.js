@@ -258,7 +258,12 @@ function processData() {
         const y = m.substring(0, 4);
         const amt = parseAmount(nr.결제금액);
         const uid = nr.주문자ID || nr.주문자명 || '익명';
-        const orderCnt = nr.주문횟수 || userHistory[uid];
+        // 주문횟수 컬럼이 존재하면 숫자로 파싱 (0도 유효값으로 처리)
+        // 컬럼 자체가 없을 때만 userHistory 누적값을 대체로 사용
+        const rawOrderCnt = nr.주문횟수;
+        const orderCnt = (rawOrderCnt !== undefined && rawOrderCnt !== null && rawOrderCnt !== '')
+            ? parseFloat(String(rawOrderCnt).replace(/,/g, '')) || 0
+            : userHistory[uid];
 
         const adCost = parseAmount(nr.광고비);
 
