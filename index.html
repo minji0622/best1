@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경영 분석 대시보드 v2.0</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header class="no-print">
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <h1 style="margin: 0; font-size: 20px; color: var(--primary);">📊 Sales Analytics</h1>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-dashboard">대시보드</button>
+            <button class="tab-btn" data-tab="tab-report">상세 리포트</button>
+            <button class="tab-btn" data-tab="tab-verify">검증 가이드</button>
+        </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button id="editColumnsBtn" class="btn" style="background: #f6a623; display: none;">컬럼 편집</button>
+        <button id="clearBtn" class="btn" style="background: #9aa0a6;">데이터 초기화</button>
+        <button id="downloadBtn" class="btn btn-success">Excel 다운로드</button>
+        <button onclick="window.print()" class="btn" style="background: var(--secondary);">PDF 인쇄</button>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- 인쇄 전용 헤더 -->
+    <div class="print-header">
+        <div>
+            <div class="print-header-title">매출 분석 리포트</div>
+            <div class="print-header-sub">Sales Analytics Dashboard</div>
+        </div>
+        <div id="print-meta"></div>
+    </div>
+
+    <!-- 업로드 섹션 -->
+    <div class="upload-zone no-print" onclick="document.getElementById('fileInput').click()">
+        <p style="font-size: 18px; font-weight: 500;">분석할 데이터 파일을 업로드하세요</p>
+        <p style="color: var(--secondary); font-size: 14px;">(data.xlsx 파일을 드래그하거나 여기를 클릭)</p>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;">
+    </div>
+
+    <!-- 대시보드 탭 -->
+    <div id="tab-dashboard" class="tab-content active">
+        <!-- KPI 카드 영역 -->
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-title">
+                    당월 총 매출액
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월의 모든 '결제금액' 합계<br><b>검증:</b> 쉼표나 문자가 포함된 금액 데이터를 숫자로 변환하여 합산합니다.</span></span>
+                </div>
+                <div class="kpi-value" id="kpi-revenue">0원</div>
+                <div class="kpi-trend"><span>-</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">
+                    활동 회원 수
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월에 주문 이력이 있는 고유 주문자 수<br><b>검증:</b> 주문자ID(또는 이름)를 기준으로 중복을 제거하고 카운트합니다.</span></span>
+                </div>
+                <div class="kpi-value" id="kpi-users">0명</div>
+                <div class="kpi-trend"><span>-</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">
+                    신규 매출 비중
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> (주문횟수 0~1회인 매출 합계 / 총 매출) × 100<br><b>검증:</b> 누적 주문이 1회 이하인 고객을 신규로 분류하여 계산합니다.</span></span>
+                </div>
+                <div class="kpi-value" id="kpi-new-ratio">0%</div>
+                <div class="kpi-trend" style="color: var(--secondary)">주문 0~1회 고객</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">
+                    평균 객단가 (AOV)
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 총 매출액 / 전체 주문 건수<br><b>검증:</b> 해당 월의 1회 주문당 평균 결제 금액을 의미합니다.</span></span>
+                </div>
+                <div class="kpi-value" id="kpi-aov">0원</div>
+                <div class="kpi-trend" style="color: var(--secondary)">건당 평균 결제액</div>
+            </div>
+            <div class="kpi-card kpi-card-roas">
+                <div class="kpi-title">
+                    신규매출 ROAS
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 신규 매출액 ÷ 광고비 × 100<br><b>예시:</b> 광고비 100원, 신규매출 1,000원 → ROAS 1,000%<br><b>기준:</b> 주문횟수 0~1회 고객의 매출 기준</span></span>
+                </div>
+                <div class="kpi-value" id="kpi-roas">-</div>
+                <div class="kpi-trend" id="kpi-roas-sub" style="color: var(--secondary)">광고비 대비 신규매출</div>
+            </div>
+        </div>
+
+        <!-- 차트 영역 -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3 style="margin-top:0">월별 매출 및 신규 매출 추이</h3>
+                <div class="chart-container"><canvas id="salesChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3 style="margin-top:0">상품 카테고리 비중 (금액 기준)</h3>
+                <div class="chart-container"><canvas id="categoryChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 연간 실적 요약 섹션 추가 -->
+        <div class="chart-card" id="yearly-summary-section" style="margin-bottom: 30px; display: none;">
+            <h3 style="margin-top:0">📅 연간 실적 합계 요약</h3>
+            <div class="table-wrapper">
+                <table id="yearly-summary-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center">분석 연도</th>
+                            <th class="text-right">총 매출액</th>
+                            <th class="text-right">신규 매출액</th>
+                            <th class="text-right">신규 비중</th>
+                            <th class="text-right">총 주문건수</th>
+                            <th class="text-right">평균 객단가</th>
+                            <th class="text-right">광고비</th>
+                            <th class="text-right">신규 ROAS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="yearlyTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상세 리포트 탭 -->
+    <div id="tab-report" class="tab-content">
+        <div class="chart-card">
+            <h3 style="margin-top:0">월별 회원유형 상세 리포트</h3>
+            <div class="table-wrapper">
+                <table id="reportTable">
+                    <thead>
+                        <tr>
+                            <th class="text-center">월</th>
+                            <th>회원유형</th>
+                            <th class="text-right">주문건수</th>
+                            <th class="text-right">매출액</th>
+                            <th class="text-right">신규매출액</th>
+                            <th class="text-right">광고비</th>
+                            <th class="text-right">신규 ROAS</th>
+                            <th class="text-right">평균 객단가</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTbody">
+                        <tr><td colspan="5" class="text-center">데이터를 업로드하면 상세 리포트가 표시됩니다.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 검증 가이드 탭 -->
+    <div id="tab-verify" class="tab-content no-print">
+        <div class="config-panel" style="background: #e8f0fe; border-color: #1a73e8;">
+            <h3 style="margin-top:0">💡 엑셀 수식 검증 가이드</h3>
+            <p>대시보드 수치가 맞는지 엑셀에서 직접 확인해보세요. 아래 수식을 복사하여 엑셀 시트의 빈 셀에 붙여넣으세요.</p>
+            <p style="font-size: 0.9em; color: #5f6368;">* 원본 데이터 시트의 컬럼 위치를 기준으로 작성되었습니다. (A:주문일시, B:회원구분, C:결제금액, D:주문횟수 가정)</p>
+        </div>
+
+        <div class="kpi-container" style="grid-template-columns: 1fr 1fr;">
+            <div class="chart-card">
+                <h4>1. 월간 총 매출액 확인</h4>
+                <div class="code-block">
+                    <code id="formula-total">=SUMPRODUCT((TEXT(A:A,"YYYY-MM")="2026-02")*(C:C))</code>
+                    <button class="btn-copy" onclick="copyFormula('formula-total')">수식 복사</button>
+                </div>
+                <p class="formula-desc">2026년 2월의 모든 결제금액(C열)을 합산합니다.</p>
+            </div>
+
+            <div class="chart-card">
+                <h4>2. 월간 신규 매출액 확인</h4>
+                <div class="code-block">
+                    <code id="formula-new">=SUMPRODUCT((TEXT(A:A,"YYYY-MM")="2026-02")*(D:D<=1)*(C:C))</code>
+                    <button class="btn-copy" onclick="copyFormula('formula-new')">수식 복사</button>
+                </div>
+                <p class="formula-desc">2026년 2월 중 주문횟수(D열)가 1 이하인 금액만 합산합니다.</p>
+            </div>
+
+            <div class="chart-card">
+                <h4>3. 월간 활동 회원수 (중복제거)</h4>
+                <div class="code-block">
+                    <code id="formula-users">=ROWS(UNIQUE(FILTER(E:E, TEXT(A:A,"YYYY-MM")="2026-02")))</code>
+                    <button class="btn-copy" onclick="copyFormula('formula-users')">수식 복사</button>
+                </div>
+                <p class="formula-desc">주문자ID(E열)를 기준으로 중복을 제외한 명수를 구합니다. (Excel 365용)</p>
+            </div>
+
+            <div class="chart-card">
+                <h4>4. 특정 회원유형 매출 확인</h4>
+                <div class="code-block">
+                    <code id="formula-type">=SUMIFS(C:C, A:A, ">=2026-02-01", A:A, "<=2026-02-28", B:B, "기업회원")</code>
+                    <button class="btn-copy" onclick="copyFormula('formula-type')">수식 복사</button>
+                </div>
+                <p class="formula-desc">특정 날짜 범위 내의 '기업회원' 매출액만 합산합니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- 컬럼 선택 모달 -->
+    <div id="columnModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0">가져올 컬럼 선택</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 14px; color: var(--secondary); margin-bottom: 15px;">
+                    분석에 사용할 컬럼을 선택하세요. 필수 컬럼(주문일시, 결제금액 등)은 반드시 포함되어야 합니다.
+                </p>
+                <div id="columnList" class="column-grid">
+                    <!-- 체크박스들이 여기에 생성됨 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="selectAllBtn" class="btn" style="background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0;">전체 선택/해제</button>
+                <div style="flex-grow: 1;"></div>
+                <button id="cancelModalBtn" class="btn" style="background: #fff; color: #5f6368; border: 1px solid #dadce0; margin-right: 8px;">취소</button>
+                <button id="applyColumnsBtn" class="btn btn-success">데이터 반영하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
