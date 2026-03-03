@@ -6,11 +6,15 @@ let analyzedData = {
     monthly: {},
     categories: {},
     yearly: {},
-    mom: {}
+    mom: {},
+    orderDist: {},
+    amountDist: {}
 };
 let charts = {
     sales: null,
-    category: null
+    category: null,
+    orderDist: null,
+    amountDist: null
 };
 
 // 1. 탭 전환 로직 (가장 안전한 방식)
@@ -289,7 +293,30 @@ function processData() {
     });
 
     analyzedData.monthly = monthly; analyzedData.categories = categories; analyzedData.yearly = yearly;
-    
+
+    // 주문건수 구간별 고객 분포 (userHistory 기준)
+    const orderDist = { '0~1건': 0, '2~5건': 0, '6~10건': 0, '10건 이상': 0 };
+    Object.values(userHistory).forEach(cnt => {
+        if (cnt <= 1)       orderDist['0~1건']++;
+        else if (cnt <= 5)  orderDist['2~5건']++;
+        else if (cnt <= 10) orderDist['6~10건']++;
+        else                orderDist['10건 이상']++;
+    });
+    analyzedData.orderDist = orderDist;
+
+    // 결제금액대별 주문 건수 분포
+    const amountDist = { '7만원 이하': 0, '7~9만원': 0, '9~12만원': 0, '12~15만원': 0, '15만원 초과': 0 };
+    rawData.forEach(row => {
+        const nr = normalizeRow(row);
+        const amt = parseAmount(nr.결제금액);
+        if (amt <= 70000)       amountDist['7만원 이하']++;
+        else if (amt <= 90000)  amountDist['7~9만원']++;
+        else if (amt <= 120000) amountDist['9~12만원']++;
+        else if (amt <= 150000) amountDist['12~15만원']++;
+        else                    amountDist['15만원 초과']++;
+    });
+    analyzedData.amountDist = amountDist;
+
     // KPI 계산
     const ms = Object.keys(monthly).sort();
     if (ms.length > 0) {
@@ -456,6 +483,103 @@ function renderCharts() {
             });
         }
     }
+
+    renderOrderDistChart();
+    renderAmountDistChart();
+}
+
+function renderOrderDistChart() {
+    const canvas = document.getElementById('orderDistChart');
+    const ctx = canvas?.getContext('2d');
+    const data = analyzedData.orderDist || {};
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+    const total = values.reduce((s, v) => s + v, 0);
+
+    if (!total) {
+        if (charts.orderDist) { charts.orderDist.destroy(); charts.orderDist = null; }
+        showChartEmpty('orderDistChart', 'orderDistChart');
+        return;
+    }
+    hideChartEmpty('orderDistChart', 'orderDistChart');
+    if (ctx) {
+        if (charts.orderDist) charts.orderDist.destroy();
+        charts.orderDist = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels.map((l, i) => `${l} (${values[i]}명, ${(values[i]/total*100).toFixed(1)}%)`),
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#1a73e8', '#34a853', '#f9ab00', '#ea4335'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const val = ctx.parsed;
+                                const pct = (val / total * 100).toFixed(1);
+                                return ` ${val.toLocaleString()}명 (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function renderAmountDistChart() {
+    const canvas = document.getElementById('amountDistChart');
+    const ctx = canvas?.getContext('2d');
+    const data = analyzedData.amountDist || {};
+    const labels = Object.keys(data);
+    const values = Object.values(data);
+    const total = values.reduce((s, v) => s + v, 0);
+
+    if (!total) {
+        if (charts.amountDist) { charts.amountDist.destroy(); charts.amountDist = null; }
+        showChartEmpty('amountDistChart', 'amountDistChart');
+        return;
+    }
+    hideChartEmpty('amountDistChart', 'amountDistChart');
+    if (ctx) {
+        if (charts.amountDist) charts.amountDist.destroy();
+        charts.amountDist = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels.map((l, i) => `${l} (${values[i]}건, ${(values[i]/total*100).toFixed(1)}%)`),
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#a8d8ea', '#1a73e8', '#34a853', '#f9ab00', '#ea4335'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const val = ctx.parsed;
+                                const pct = (val / total * 100).toFixed(1);
+                                return ` ${val.toLocaleString()}건 (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 function renderYearlySummary() {
@@ -586,6 +710,8 @@ window.addEventListener('beforeprint', () => {
     }
     if (charts.sales) charts.sales.resize();
     if (charts.category) charts.category.resize();
+    if (charts.orderDist) charts.orderDist.resize();
+    if (charts.amountDist) charts.amountDist.resize();
 });
 
 // 인쇄 후: 화면용 크기로 복구

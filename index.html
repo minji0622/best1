@@ -103,6 +103,24 @@
             </div>
         </div>
 
+        <!-- 고객 주문빈도 & 결제금액대 분포 -->
+        <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 30px;">
+            <div class="chart-card">
+                <h3 style="margin-top:0">👤 고객 주문빈도 분포</h3>
+                <p style="font-size:13px; color:var(--secondary); margin:0 0 12px;">주문건수 구간별 고객 비중 (중복 제거 기준)</p>
+                <div class="chart-container" style="height:320px;">
+                    <canvas id="orderDistChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 style="margin-top:0">💳 결제금액대별 주문 건수</h3>
+                <p style="font-size:13px; color:var(--secondary); margin:0 0 12px;">결제금액 구간별 주문 건수 비중</p>
+                <div class="chart-container" style="height:320px;">
+                    <canvas id="amountDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- 연간 실적 요약 섹션 추가 -->
         <div class="chart-card" id="yearly-summary-section" style="margin-bottom: 30px; display: none;">
             <h3 style="margin-top:0">📅 연간 실적 합계 요약</h3>

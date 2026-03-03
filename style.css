@@ -576,6 +576,13 @@ td {
         break-inside: avoid;
     }
 
+    /* ── 신규 파이차트 그리드 ── */
+    .chart-grid[style*="1fr 1fr"] {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px;
+        break-inside: avoid;
+    }
+
     /* ── 상세 리포트 탭 — 새 페이지 시작 ── */
     #tab-report {
         page-break-before: always;
