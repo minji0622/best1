@@ -558,23 +558,21 @@ td {
     }
 
     .chart-container {
-        height: 200px !important;
-        overflow: hidden;
+        height: 220px !important;
+        overflow: visible !important;
         width: 100% !important;
     }
 
-    .chart-container .print-chart-img {
-        width: 100% !important;
-        height: 200px !important;
-        object-fit: contain;
+    .print-chart-img {
         display: block !important;
+        width: 100% !important;
+        height: 220px !important;
+        object-fit: contain !important;
     }
 
     #salesChart {
-        width: 100% !important;
         min-width: unset !important;
         max-width: 100% !important;
-        height: 200px !important;
     }
 
     /* ── 연간 실적 요약 ── */

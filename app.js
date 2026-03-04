@@ -691,31 +691,10 @@ function copyFormula(id) {
     if(txt) navigator.clipboard.writeText(txt).then(() => alert("복사되었습니다."));
 }
 
-// ── 인쇄: canvas → 고해상도 이미지 변환 후 인쇄, 복구 ──
-let _printImgBackups = [];
+// ── 인쇄: canvas를 이미지로 교체 후 인쇄 ──
+let _printBackups = [];
 
-function canvasToImage(canvas) {
-    // 고해상도 이미지 생성 (2x for retina-quality print)
-    const dpr = 2;
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width * dpr;
-    tempCanvas.height = canvas.height * dpr;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.scale(dpr, dpr);
-    tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
-
-    const img = document.createElement('img');
-    img.src = tempCanvas.toDataURL('image/png');
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    img.style.display = 'block';
-    img.className = 'print-chart-img';
-    return img;
-}
-
-window.addEventListener('beforeprint', () => {
-    // 메타 정보 세팅
+function setPrintMeta() {
     const el = document.getElementById('print-meta');
     if (el) {
         const now = new Date();
@@ -724,32 +703,66 @@ window.addEventListener('beforeprint', () => {
         const rangeStr = ms.length ? `분석 기간: ${ms[0]} ~ ${ms[ms.length-1]}` : '';
         el.innerHTML = `출력일: ${dateStr}${rangeStr ? '<br>' + rangeStr : ''}`;
     }
+}
 
-    // 모든 차트 canvas를 이미지로 교체
-    _printImgBackups = [];
+function replaceCanvasWithImage() {
+    _printBackups = [];
     const canvasIds = ['salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart'];
+
     canvasIds.forEach(id => {
         const canvas = document.getElementById(id);
         if (!canvas || canvas.style.display === 'none') return;
         const container = canvas.parentElement;
         if (!container) return;
 
-        const img = canvasToImage(canvas);
-        canvas.style.display = 'none';
-        container.appendChild(img);
-        _printImgBackups.push({ canvas, img, container });
-    });
-});
+        try {
+            const dataUrl = canvas.toDataURL('image/png');
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+            img.className = 'print-chart-img';
 
-// 인쇄 후: 이미지 제거 & canvas 복구
-window.addEventListener('afterprint', () => {
-    _printImgBackups.forEach(({ canvas, img, container }) => {
+            canvas.style.display = 'none';
+            container.appendChild(img);
+            _printBackups.push({ canvas, img, container });
+        } catch (e) {
+            console.warn('차트 이미지 변환 실패:', id, e);
+        }
+    });
+}
+
+function restoreCanvas() {
+    _printBackups.forEach(({ canvas, img }) => {
         if (img.parentElement) img.parentElement.removeChild(img);
         canvas.style.display = '';
     });
-    _printImgBackups = [];
-    // 화면용 차트 크기 복구
+    _printBackups = [];
     renderCharts();
+}
+
+function printWithCharts() {
+    setPrintMeta();
+    replaceCanvasWithImage();
+
+    // 이미지가 렌더링될 시간을 확보한 후 인쇄
+    setTimeout(() => {
+        window.print();
+        // 인쇄 다이얼로그가 닫힌 후 복구
+        setTimeout(restoreCanvas, 500);
+    }, 300);
+}
+
+// Ctrl+P 등 직접 인쇄 대비 (fallback)
+window.addEventListener('beforeprint', () => {
+    if (_printBackups.length === 0) {
+        setPrintMeta();
+        replaceCanvasWithImage();
+    }
+});
+window.addEventListener('afterprint', () => {
+    if (_printBackups.length > 0) {
+        restoreCanvas();
+    }
 });
 
 function normalizeRow(r) { const nr = {}; Object.keys(r).forEach(k => nr[k.replace(/\s/g, "")] = r[k]); return nr; }
