@@ -563,6 +563,13 @@ td {
         width: 100% !important;
     }
 
+    .chart-container .print-chart-img {
+        width: 100% !important;
+        height: 200px !important;
+        object-fit: contain;
+        display: block !important;
+    }
+
     #salesChart {
         width: 100% !important;
         min-width: unset !important;

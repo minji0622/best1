@@ -691,8 +691,31 @@ function copyFormula(id) {
     if(txt) navigator.clipboard.writeText(txt).then(() => alert("복사되었습니다."));
 }
 
-// 인쇄 전: 메타 정보 세팅 + canvas 크기 리셋
+// ── 인쇄: canvas → 고해상도 이미지 변환 후 인쇄, 복구 ──
+let _printImgBackups = [];
+
+function canvasToImage(canvas) {
+    // 고해상도 이미지 생성 (2x for retina-quality print)
+    const dpr = 2;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width * dpr;
+    tempCanvas.height = canvas.height * dpr;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.scale(dpr, dpr);
+    tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+    const img = document.createElement('img');
+    img.src = tempCanvas.toDataURL('image/png');
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+    img.style.display = 'block';
+    img.className = 'print-chart-img';
+    return img;
+}
+
 window.addEventListener('beforeprint', () => {
+    // 메타 정보 세팅
     const el = document.getElementById('print-meta');
     if (el) {
         const now = new Date();
@@ -702,20 +725,30 @@ window.addEventListener('beforeprint', () => {
         el.innerHTML = `출력일: ${dateStr}${rangeStr ? '<br>' + rangeStr : ''}`;
     }
 
-    // JavaScript로 설정된 인라인 크기를 초기화해야 A4에 맞게 렌더링됨
-    const sCanvas = document.getElementById('salesChart');
-    if (sCanvas) {
-        sCanvas.style.width = '100%';
-        sCanvas.style.height = '200px';
-    }
-    if (charts.sales) charts.sales.resize();
-    if (charts.category) charts.category.resize();
-    if (charts.orderDist) charts.orderDist.resize();
-    if (charts.amountDist) charts.amountDist.resize();
+    // 모든 차트 canvas를 이미지로 교체
+    _printImgBackups = [];
+    const canvasIds = ['salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart'];
+    canvasIds.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas || canvas.style.display === 'none') return;
+        const container = canvas.parentElement;
+        if (!container) return;
+
+        const img = canvasToImage(canvas);
+        canvas.style.display = 'none';
+        container.appendChild(img);
+        _printImgBackups.push({ canvas, img, container });
+    });
 });
 
-// 인쇄 후: 화면용 크기로 복구
+// 인쇄 후: 이미지 제거 & canvas 복구
 window.addEventListener('afterprint', () => {
+    _printImgBackups.forEach(({ canvas, img, container }) => {
+        if (img.parentElement) img.parentElement.removeChild(img);
+        canvas.style.display = '';
+    });
+    _printImgBackups = [];
+    // 화면용 차트 크기 복구
     renderCharts();
 });
 
