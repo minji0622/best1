@@ -430,6 +430,37 @@ td {
     color: #000;
 }
 
+/* ── 전월대비 증감 배지 ── */
+.comp-badge {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 140px;
+    flex: 1 1 140px;
+    transition: box-shadow 0.2s;
+}
+.comp-badge:hover {
+    box-shadow: 0 2px 8px rgba(60,64,67,0.18);
+}
+.comp-type {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--secondary);
+    letter-spacing: 0.02em;
+}
+.comp-cur {
+    font-size: 17px;
+    font-weight: 700;
+    color: #3c4043;
+}
+.comp-diff {
+    font-size: 13px;
+    font-weight: 600;
+}
+
 /* ── 인쇄 전용 헤더 (화면에서는 숨김) ── */
 .print-header {
     display: none;

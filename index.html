@@ -103,6 +103,22 @@
             </div>
         </div>
 
+        <!-- 전월대비 회원유형별 매출 비교 차트 -->
+        <div class="chart-card" style="margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <div>
+                    <h3 style="margin: 0 0 4px;">📊 회원유형별 전월 대비 매출 비교</h3>
+                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">당월 vs 전월 매출액 및 증감률 (회원유형 기준)</p>
+                </div>
+            </div>
+            <!-- 증감 요약 배지 -->
+            <div id="memberCompSummary" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;"></div>
+            <!-- 차트 -->
+            <div class="chart-container" style="height: 340px;">
+                <canvas id="memberCompChart"></canvas>
+            </div>
+        </div>
+
         <!-- 고객 주문빈도 & 결제금액대 분포 -->
         <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 30px;">
             <div class="chart-card">

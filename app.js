@@ -14,7 +14,8 @@ let charts = {
     sales: null,
     category: null,
     orderDist: null,
-    amountDist: null
+    amountDist: null,
+    memberComp: null
 };
 
 // 1. 탭 전환 로직 (가장 안전한 방식)
@@ -486,6 +487,7 @@ function renderCharts() {
 
     renderOrderDistChart();
     renderAmountDistChart();
+    renderMemberCompChart();
 }
 
 function renderOrderDistChart() {
@@ -582,7 +584,148 @@ function renderAmountDistChart() {
     }
 }
 
-function renderYearlySummary() {
+function renderMemberCompChart() {
+    const canvas = document.getElementById('memberCompChart');
+    const ctx = canvas?.getContext('2d');
+    const ms = Object.keys(analyzedData.monthly).sort();
+
+    if (ms.length < 1) {
+        if (charts.memberComp) { charts.memberComp.destroy(); charts.memberComp = null; }
+        showChartEmpty('memberCompChart', 'memberCompChart');
+        return;
+    }
+    hideChartEmpty('memberCompChart', 'memberCompChart');
+
+    // 최근 2개월 추출
+    const curKey = ms[ms.length - 1];
+    const preKey = ms.length >= 2 ? ms[ms.length - 2] : null;
+    const curData = analyzedData.monthly[curKey];
+    const preData = preKey ? analyzedData.monthly[preKey] : null;
+
+    // 전체 회원 유형 수집 (두 달 합산 기준)
+    const typeSet = new Set();
+    Object.keys(curData.memberTypes).forEach(t => typeSet.add(t));
+    if (preData) Object.keys(preData.memberTypes).forEach(t => typeSet.add(t));
+    const types = Array.from(typeSet).sort();
+
+    const curAmounts  = types.map(t => curData.memberTypes[t]?.amount  || 0);
+    const preAmounts  = types.map(t => preData ? (preData.memberTypes[t]?.amount  || 0) : null);
+    const curCounts   = types.map(t => curData.memberTypes[t]?.count   || 0);
+    const preCounts   = types.map(t => preData ? (preData.memberTypes[t]?.count   || 0) : null);
+
+    // 전월대비 증감률 계산
+    const growthRates = types.map((t, i) => {
+        if (!preData || preAmounts[i] === null || preAmounts[i] === 0) return null;
+        return parseFloat(((curAmounts[i] - preAmounts[i]) / preAmounts[i] * 100).toFixed(1));
+    });
+
+    // 컬럼별 색상
+    const COLOR_CUR = ['#1a73e8', '#34a853', '#f9ab00', '#a142f4', '#ea4335'];
+    const COLOR_PRE = ['#9ec5fd', '#a8e6ba', '#fde9a2', '#d8b4fe', '#f4b8b4'];
+
+    const datasets = [];
+    if (preData) {
+        datasets.push({
+            label: `전월 (${preKey}) 매출`,
+            data: preAmounts,
+            backgroundColor: types.map((_, i) => COLOR_PRE[i % COLOR_PRE.length]),
+            borderRadius: 4,
+            yAxisID: 'y'
+        });
+    }
+    datasets.push({
+        label: `당월 (${curKey}) 매출`,
+        data: curAmounts,
+        backgroundColor: types.map((_, i) => COLOR_CUR[i % COLOR_CUR.length]),
+        borderRadius: 4,
+        yAxisID: 'y'
+    });
+    if (preData) {
+        datasets.push({
+            label: '전월대비 증감률',
+            data: growthRates,
+            type: 'line',
+            borderColor: '#ea4335',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: growthRates.map(r => r === null ? 'transparent' : r >= 0 ? '#188038' : '#ea4335'),
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            borderWidth: 2,
+            borderDash: [5, 3],
+            yAxisID: 'y2',
+            spanGaps: false,
+            datalabels: { display: false }
+        });
+    }
+
+    // 증감 요약 정보 업데이트
+    const summary = document.getElementById('memberCompSummary');
+    if (summary) {
+        if (preData) {
+            const rows = types.map((t, i) => {
+                const diff = curAmounts[i] - preAmounts[i];
+                const rate = growthRates[i];
+                const diffColor = diff >= 0 ? '#188038' : '#ea4335';
+                const arrow = diff >= 0 ? '▲' : '▼';
+                const rateStr = rate !== null ? `${arrow} ${Math.abs(rate)}%` : '-';
+                return `<div class="comp-badge" style="border-left: 3px solid ${COLOR_CUR[i % COLOR_CUR.length]};">
+                    <span class="comp-type">${t}</span>
+                    <span class="comp-cur">${curAmounts[i].toLocaleString()}원</span>
+                    <span class="comp-diff" style="color:${diffColor};">${diff >= 0 ? '+' : ''}${diff.toLocaleString()}원 (${rateStr})</span>
+                    <span class="comp-count" style="color:#5f6368; font-size:11px;">주문 ${curCounts[i]}건</span>
+                </div>`;
+            }).join('');
+            summary.innerHTML = rows;
+        } else {
+            summary.innerHTML = `<p style="color:var(--secondary); font-size:13px; margin:0;">전월 데이터가 없어 증감 비교를 표시할 수 없습니다.</p>`;
+        }
+    }
+
+    if (ctx) {
+        if (charts.memberComp) charts.memberComp.destroy();
+        charts.memberComp = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: types, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        ticks: { callback: v => v.toLocaleString() + '원' },
+                        title: { display: true, text: '매출액 (원)', color: '#5f6368', font: { size: 11 } }
+                    },
+                    y2: {
+                        beginAtZero: false,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: v => v + '%' },
+                        title: { display: true, text: '증감률 (%)', color: '#ea4335', font: { size: 11 } }
+                    },
+                    x: { ticks: { font: { size: 13, weight: '600' } } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.dataset.yAxisID === 'y2') {
+                                    const v = ctx.parsed.y;
+                                    return v === null ? '' : ` 증감률: ${v >= 0 ? '+' : ''}${v}%`;
+                                }
+                                return ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}원`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+
     const tb = document.getElementById('yearlyTbody');
     if (!tb) return;
     const ys = Object.keys(analyzedData.yearly).sort().reverse();
@@ -707,7 +850,7 @@ function setPrintMeta() {
 
 function replaceCanvasWithImage() {
     _printBackups = [];
-    const canvasIds = ['salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart'];
+    const canvasIds = ['salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart', 'memberCompChart'];
 
     canvasIds.forEach(id => {
         const canvas = document.getElementById(id);
