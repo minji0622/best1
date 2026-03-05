@@ -596,30 +596,26 @@ function renderMemberCompChart() {
     }
     hideChartEmpty('memberCompChart', 'memberCompChart');
 
-    // 최근 2개월 추출
     const curKey = ms[ms.length - 1];
     const preKey = ms.length >= 2 ? ms[ms.length - 2] : null;
     const curData = analyzedData.monthly[curKey];
     const preData = preKey ? analyzedData.monthly[preKey] : null;
 
-    // 전체 회원 유형 수집 (두 달 합산 기준)
+    // 두 달 모두에서 회원유형 수집
     const typeSet = new Set();
     Object.keys(curData.memberTypes).forEach(t => typeSet.add(t));
     if (preData) Object.keys(preData.memberTypes).forEach(t => typeSet.add(t));
     const types = Array.from(typeSet).sort();
 
-    const curAmounts  = types.map(t => curData.memberTypes[t]?.amount  || 0);
-    const preAmounts  = types.map(t => preData ? (preData.memberTypes[t]?.amount  || 0) : null);
-    const curCounts   = types.map(t => curData.memberTypes[t]?.count   || 0);
-    const preCounts   = types.map(t => preData ? (preData.memberTypes[t]?.count   || 0) : null);
+    const curAmounts = types.map(t => curData.memberTypes[t]?.amount || 0);
+    const preAmounts = types.map(t => preData ? (preData.memberTypes[t]?.amount || 0) : 0);
+    const curCounts  = types.map(t => curData.memberTypes[t]?.count  || 0);
 
-    // 전월대비 증감률 계산
     const growthRates = types.map((t, i) => {
-        if (!preData || preAmounts[i] === null || preAmounts[i] === 0) return null;
+        if (!preData || preAmounts[i] === 0) return null;
         return parseFloat(((curAmounts[i] - preAmounts[i]) / preAmounts[i] * 100).toFixed(1));
     });
 
-    // 컬럼별 색상
     const COLOR_CUR = ['#1a73e8', '#34a853', '#f9ab00', '#a142f4', '#ea4335'];
     const COLOR_PRE = ['#9ec5fd', '#a8e6ba', '#fde9a2', '#d8b4fe', '#f4b8b4'];
 
@@ -653,16 +649,15 @@ function renderMemberCompChart() {
             borderWidth: 2,
             borderDash: [5, 3],
             yAxisID: 'y2',
-            spanGaps: false,
-            datalabels: { display: false }
+            spanGaps: false
         });
     }
 
-    // 증감 요약 정보 업데이트
+    // 증감 배지 렌더링
     const summary = document.getElementById('memberCompSummary');
     if (summary) {
         if (preData) {
-            const rows = types.map((t, i) => {
+            summary.innerHTML = types.map((t, i) => {
                 const diff = curAmounts[i] - preAmounts[i];
                 const rate = growthRates[i];
                 const diffColor = diff >= 0 ? '#188038' : '#ea4335';
@@ -675,7 +670,6 @@ function renderMemberCompChart() {
                     <span class="comp-count" style="color:#5f6368; font-size:11px;">주문 ${curCounts[i]}건</span>
                 </div>`;
             }).join('');
-            summary.innerHTML = rows;
         } else {
             summary.innerHTML = `<p style="color:var(--secondary); font-size:13px; margin:0;">전월 데이터가 없어 증감 비교를 표시할 수 없습니다.</p>`;
         }
@@ -725,7 +719,7 @@ function renderMemberCompChart() {
     }
 }
 
-
+function renderYearlySummary() {
     const tb = document.getElementById('yearlyTbody');
     if (!tb) return;
     const ys = Object.keys(analyzedData.yearly).sort().reverse();
@@ -911,7 +905,11 @@ window.addEventListener('afterprint', () => {
 function normalizeRow(r) { const nr = {}; Object.keys(r).forEach(k => nr[k.replace(/\s/g, "")] = r[k]); return nr; }
 function parseAmount(v) { return typeof v === 'number' ? v : parseFloat(String(v || 0).replace(/,/g, '')) || 0; }
 function formatDate(d) {
-    if (d instanceof Date) return d.toISOString().substring(0, 7);
+    if (d instanceof Date) {
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${mo}`;
+    }
     const m = String(d).match(/(\d{4})[-. ](\d{1,2})/);
     return m ? `${m[1]}-${m[2].padStart(2, '0')}` : String(d).substring(0, 7);
 }
