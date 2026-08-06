@@ -679,3 +679,194 @@ td {
         }
     }
 }
+
+/* ══════════════════════════════════════════════
+   추가 분석 영역 (전월대비 / 카테고리 / 적립금 / 광고비)
+   ══════════════════════════════════════════════ */
+
+/* 배지 줄 */
+.badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    align-items: stretch;
+}
+
+.badge-row:empty {
+    margin-bottom: 0;
+}
+
+.comp-label {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: var(--secondary);
+    background: #f1f3f4;
+    border-radius: 8px;
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+
+.comp-label b { color: #3c4043; }
+
+/* 소제목 */
+.sub-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--secondary);
+    margin: 0 0 10px;
+}
+
+/* 섹션 헤더 (제목 + 우측 컨트롤) */
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+/* 금액/건수 토글 */
+.toggle-group {
+    display: inline-flex;
+    border: 1px solid #dadce0;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.toggle-btn {
+    padding: 7px 18px;
+    border: none;
+    background: #fff;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.toggle-btn + .toggle-btn { border-left: 1px solid #dadce0; }
+
+.toggle-btn:hover { background: #f1f3f4; }
+
+.toggle-btn.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+.toggle-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+/* 컬럼 인식 안내 */
+.field-notice {
+    font-size: 12.5px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.field-notice.ok {
+    background: #e6f4ea;
+    color: #188038;
+    border: 1px solid #ceead6;
+}
+
+.field-notice.warn {
+    background: #fef7e0;
+    color: #b06000;
+    border: 1px solid #fde293;
+}
+
+.field-notice:empty { display: none; }
+
+/* 카테고리 표 */
+.table-scroll {
+    overflow-x: auto;
+}
+
+.cat-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 7px;
+    vertical-align: middle;
+}
+
+.cat-sub {
+    font-size: 11px;
+    color: var(--secondary);
+    margin-top: 2px;
+}
+
+.cat-top {
+    font-size: 11px;
+    color: var(--secondary);
+    margin-top: 3px;
+    padding-left: 17px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#catMonthlyTable th:first-child,
+#catMonthlyTable td:first-child {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 1;
+    min-width: 190px;
+}
+
+#catMonthlyTable thead th:first-child { background: #f8f9fa; }
+#catMonthlyTable .subtotal-row td:first-child { background: #f8f9fa; }
+#catMonthlyTable td { white-space: nowrap; }
+
+@media (max-width: 900px) {
+    .section-head { flex-direction: column; }
+    .chart-grid[style*="1.4fr"] { grid-template-columns: 1fr !important; }
+}
+
+/* ── 인쇄 시 추가 영역 정리 ── */
+@media print {
+    .badge-row { gap: 6px; margin-bottom: 10px; break-inside: avoid; }
+    .comp-badge { min-width: 110px; padding: 7px 9px; }
+    .comp-cur { font-size: 11pt; }
+    .comp-diff { font-size: 8pt; }
+    .comp-label { font-size: 8pt; padding: 7px 9px; }
+    .toggle-group { display: none !important; }
+    .field-notice { display: none !important; }
+    .sub-title { font-size: 9pt; }
+    .chart-grid[style*="1.4fr"] { grid-template-columns: 1.4fr 1fr !important; }
+    .table-scroll { overflow: visible !important; }
+    #catMonthlyTable td, #catMonthlyTable th { font-size: 7.5pt; padding: 4px 6px; }
+    .cat-top { display: none; }
+}
+
+@media print {
+    /* 표가 길어질 수 있는 카드는 페이지 분할 허용 */
+    .chart-card.allow-break { break-inside: auto; }
+    .chart-card.allow-break .chart-container { break-inside: avoid; }
+    .chart-card.allow-break tr { break-inside: avoid; }
+}
+
+/* 활동 회원 수 보조 설명 */
+.kpi-sub {
+    font-size: 11.5px;
+    color: var(--secondary);
+    margin-top: 6px;
+    line-height: 1.45;
+}
+
+.kpi-sub:empty { display: none; }
+
+@media print {
+    .kpi-sub { font-size: 7.5pt; margin-top: 3px; }
+}

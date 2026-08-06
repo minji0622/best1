@@ -42,6 +42,7 @@
     <div class="upload-zone no-print" onclick="document.getElementById('fileInput').click()">
         <p style="font-size: 18px; font-weight: 500;">분석할 데이터 파일을 업로드하세요</p>
         <p style="color: var(--secondary); font-size: 14px;">(data.xlsx 파일을 드래그하거나 여기를 클릭)</p>
+        <p style="color: var(--secondary); font-size: 12px; margin: 6px 0 0;">필수: 주문일시, 결제금액 · 함께 선택하면 좋은 컬럼: 상품명, 사용적립금, 광고비, 회원구분, 주문횟수</p>
         <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;">
     </div>
 
@@ -60,10 +61,11 @@
             <div class="kpi-card">
                 <div class="kpi-title">
                     활동 회원 수
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월에 주문 이력이 있는 고유 주문자 수<br><b>검증:</b> 주문자ID(또는 이름)를 기준으로 중복을 제거하고 카운트합니다.</span></span>
+                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월 주문자 중, 그 이전 달에 주문 이력이 있는 고유 고객 수<br><b>기준:</b> 주문자명이 같으면 동일인으로 봅니다.<br><b>예시:</b> 2026-07 주문자 '유정연'이 2026-01에도 주문했다면 포함, 첫 주문이면 제외.</span></span>
                 </div>
                 <div class="kpi-value" id="kpi-users">0명</div>
                 <div class="kpi-trend"><span>-</span></div>
+                <div class="kpi-sub" id="kpi-users-sub"></div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-title">
@@ -103,6 +105,29 @@
             </div>
         </div>
 
+        <!-- 전월 대비 매출액 / 주문건수 비교 -->
+        <div class="chart-card" style="margin-bottom: 30px;">
+            <div style="margin-bottom: 16px;">
+                <h3 style="margin: 0 0 4px;">📈 전월 대비 매출액 · 주문건수 비교</h3>
+                <p style="font-size: 13px; color: var(--secondary); margin: 0;">월별 매출액(막대)과 주문건수(선)를 함께 보고, 아래에서 증감률을 확인하세요.</p>
+            </div>
+            <div id="momSummary" class="badge-row"></div>
+            <div class="chart-grid" style="grid-template-columns: 1.4fr 1fr; margin-bottom: 0; gap: 20px;">
+                <div>
+                    <h4 class="sub-title">월별 매출액 · 주문건수 추이</h4>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="momTrendChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="sub-title">전월 대비 증감률</h4>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="momGrowthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 전월대비 회원유형별 매출 비교 차트 -->
         <div class="chart-card" style="margin-bottom: 30px;">
             <div style="margin-bottom: 16px;">
@@ -112,6 +137,76 @@
             <div id="memberCompSummary" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;"></div>
             <div class="chart-container" style="height: 340px;">
                 <canvas id="memberCompChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 상품 카테고리별 월별 매출 -->
+        <div class="chart-card allow-break" style="margin-bottom: 30px;">
+            <div class="section-head">
+                <div>
+                    <h3 style="margin: 0 0 4px;">🪴 상품 카테고리별 월별 매출</h3>
+                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">근조화환 · 관엽식물(안시리움, 칼라벤자민 등) · 꽃바구니 등 상품명 키워드로 자동 분류합니다.</p>
+                </div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" data-mode="amount">금액</button>
+                    <button class="toggle-btn" data-mode="count">건수</button>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 360px;">
+                <canvas id="catMonthlyChart"></canvas>
+            </div>
+            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
+                <div class="table-scroll">
+                    <table id="catMonthlyTable">
+                        <thead id="catMonthlyHead"></thead>
+                        <tbody id="catMonthlyTbody">
+                            <tr><td class="text-center">데이터를 업로드하면 카테고리별 실적이 표시됩니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 광고비 월별 집행 분석 -->
+        <div class="chart-card" style="margin-bottom: 30px;">
+            <div style="margin-bottom: 12px;">
+                <h3 style="margin: 0 0 4px;">📣 월별 광고비 집행 비교</h3>
+                <p style="font-size: 13px; color: var(--secondary); margin: 0;">광고비와 신규 매출을 나란히 보고, 신규 ROAS 추이로 효율을 확인하세요.</p>
+            </div>
+            <div id="adNotice" class="field-notice"></div>
+            <div id="adSummary" class="badge-row"></div>
+            <div class="chart-container" style="height: 340px;">
+                <canvas id="adCostChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 적립금 사용 분석 -->
+        <div class="chart-card allow-break" style="margin-bottom: 30px;">
+            <div style="margin-bottom: 12px;">
+                <h3 style="margin: 0 0 4px;">🎁 적립금 사용 분석</h3>
+                <p style="font-size: 13px; color: var(--secondary); margin: 0;">월별로 고객이 사용한 적립금과 매출 대비 사용 비중을 보여줍니다.</p>
+            </div>
+            <div id="pointNotice" class="field-notice"></div>
+            <div id="pointSummary" class="badge-row"></div>
+            <div class="chart-container" style="height: 320px;">
+                <canvas id="pointChart"></canvas>
+            </div>
+            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
+                <table id="pointTable">
+                    <thead>
+                        <tr>
+                            <th class="text-center">월</th>
+                            <th class="text-right">사용 적립금</th>
+                            <th class="text-right">전월 대비</th>
+                            <th class="text-right">사용 주문건수</th>
+                            <th class="text-right">건당 평균 사용액</th>
+                            <th class="text-right">매출 대비 사용률</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pointTbody">
+                        <tr><td colspan="6" class="text-center">데이터를 업로드하면 적립금 사용 내역이 표시됩니다.</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -187,7 +282,7 @@
         <div class="config-panel" style="background: #e8f0fe; border-color: #1a73e8;">
             <h3 style="margin-top:0">💡 엑셀 수식 검증 가이드</h3>
             <p>대시보드 수치가 맞는지 엑셀에서 직접 확인해보세요. 아래 수식을 복사하여 엑셀 시트의 빈 셀에 붙여넣으세요.</p>
-            <p style="font-size: 0.9em; color: #5f6368;">* 원본 데이터 시트의 컬럼 위치를 기준으로 작성되었습니다. (A:주문일시, B:회원구분, C:결제금액, D:주문횟수 가정)</p>
+            <p style="font-size: 0.9em; color: #5f6368;">* 원본 데이터 시트의 컬럼 위치를 기준으로 작성되었습니다. (A:주문일시, B:회원구분, C:결제금액, D:주문횟수, E:주문자명 가정)</p>
         </div>
 
         <div class="kpi-container" style="grid-template-columns: 1fr 1fr;">
@@ -210,12 +305,12 @@
             </div>
 
             <div class="chart-card">
-                <h4>3. 월간 활동 회원수 (중복제거)</h4>
+                <h4>3. 월간 활동 회원수 (이전 주문 이력 보유)</h4>
                 <div class="code-block">
-                    <code id="formula-users">=ROWS(UNIQUE(FILTER(E:E, TEXT(A:A,"YYYY-MM")="2026-02")))</code>
+                    <code id="formula-users">=LET(nm, FILTER(E2:E10000, TEXT(A2:A10000,"YYYY-MM")="2026-02"), u, UNIQUE(nm), SUM(--(COUNTIFS(E:E, u, A:A, "<"&DATE(2026,2,1))>0)))</code>
                     <button class="btn-copy" onclick="copyFormula('formula-users')">수식 복사</button>
                 </div>
-                <p class="formula-desc">주문자ID(E열)를 기준으로 중복을 제외한 명수를 구합니다. (Excel 365용)</p>
+                <p class="formula-desc">2026년 2월 주문자(E열: 주문자명) 중 2월 1일 이전에도 주문한 적이 있는 사람만 셉니다. (Excel 365용)</p>
             </div>
 
             <div class="chart-card">
