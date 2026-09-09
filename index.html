@@ -1,355 +1,358 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경영 분석 대시보드 v2.0</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>채널톡 검토 결과 및 비용 보고 (통합)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --ink:#16191D;
+    --slate:#5B6470;
+    --rule:#DCE0E5;
+    --band:#F2F5F4;
+    --accent:#0B6B62;
+    --warn:#A33A2E;
+    --paper:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#E9EBEE;}
+  body{
+    font-family:"Pretendard",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    color:var(--ink);
+    font-size:12.5px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{
+    width:210mm;
+    min-height:297mm;
+    margin:24px auto;
+    background:var(--paper);
+    padding:15mm 15mm 13mm;
+    box-shadow:0 2px 16px rgba(0,0,0,.14);
+  }
+  .sheet + .sheet{ margin-top:0; }
+
+  .head{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+    border-bottom:2px solid var(--ink);padding-bottom:9px;
+  }
+  h1{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0;}
+  .head .meta{font-size:11px;color:var(--slate);text-align:right;line-height:1.7;white-space:nowrap;}
+
+  /* 표지 */
+  .cover{
+    display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    min-height:297mm;
+  }
+  .cover .tag{
+    font-size:12.5px;color:var(--accent);font-weight:600;letter-spacing:.02em;margin-bottom:14px;
+  }
+  .cover h1{font-size:34px;line-height:1.35;border-bottom:none;padding-bottom:0;}
+  .cover .sub{font-size:14px;color:var(--slate);margin-top:16px;line-height:1.7;}
+  .cover .doclist{margin-top:40px;border-top:1px solid var(--rule);padding-top:18px;width:100%;max-width:420px;}
+  .cover .doclist div{display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px;border-bottom:1px solid var(--rule);}
+  .cover .doclist div span:first-child{color:var(--slate);}
+  .cover .meta-bottom{margin-top:auto;padding-top:40px;font-size:11px;color:var(--slate);}
+
+  /* 검토결론(1번 문서) */
+  .verdict{
+    display:grid;grid-template-columns:200px 1fr;
+    border:1px solid var(--rule);border-top:none;
+  }
+  .verdict > div{padding:13px 16px;border-left:1px solid var(--rule);}
+  .verdict > div:first-child{border-left:none;background:var(--band);}
+  .verdict .label{font-size:11.5px;color:var(--slate);margin-bottom:4px;}
+  .verdict .call{font-size:23px;font-weight:700;letter-spacing:-.03em;color:var(--warn);}
+  .verdict .reason{font-size:12px;line-height:1.6;max-width:62em;}
+
+  /* 헤드라인 수치(2번 문서) */
+  .figure{
+    display:grid;grid-template-columns:1.15fr 1fr 1fr;
+    border:1px solid var(--rule);border-top:none;
+  }
+  .figure > div{padding:14px 16px;border-left:1px solid var(--rule);}
+  .figure > div:first-child{border-left:none;background:var(--band);}
+  .figure .label{font-size:11.5px;color:var(--slate);margin-bottom:4px;}
+  .figure .amount{font-size:27px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+  .figure .amount.sub{font-size:20px;font-weight:600;color:var(--ink);}
+  .figure .won{font-size:14px;font-weight:600;margin-left:2px;}
+  .figure .note{font-size:11px;color:var(--slate);margin-top:3px;}
+  .figure .accent{color:var(--accent);}
+
+  h2{
+    font-size:13.5px;font-weight:700;margin:20px 0 8px;
+    padding-left:8px;border-left:3px solid var(--accent);line-height:1.3;
+  }
+  h2 span{font-weight:500;color:var(--slate);font-size:11.5px;margin-left:6px;}
+
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
+  th,td{padding:6px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top;}
+  th{font-weight:600;font-size:11.5px;color:var(--slate);border-bottom:1px solid var(--ink);}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;}
+  th.n{text-align:right;}
+  td.idx{width:26px;text-align:center;color:var(--slate);font-variant-numeric:tabular-nums;font-size:11.5px;padding-top:7px;}
+  td.grp{width:88px;font-weight:600;font-size:11.5px;border-right:1px solid var(--rule);background:#FAFBFB;}
+  tbody tr:last-child td{border-bottom:1px solid var(--ink);}
+  tr.total td{font-weight:700;background:var(--band);border-bottom:1px solid var(--ink);}
+  tr.sub-total td{font-weight:600;color:var(--slate);}
+  .issue b{font-weight:600;}
+  .issue .desc{color:var(--slate);display:block;margin-top:1px;font-size:11.5px;}
+  .flag{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid var(--warn);color:var(--warn);font-size:10px;font-weight:600;border-radius:2px;line-height:1.5;vertical-align:1px;}
+
+  /* 표2(비용표) 전용 - 숫자 우측 정렬 테이블 */
+  table.numeric th,table.numeric td{text-align:right;}
+  table.numeric th:first-child,table.numeric td:first-child{text-align:left;}
+  table.numeric th.c,table.numeric td.c{text-align:center;}
+  table.numeric td.tag{text-align:left;font-size:11px;color:var(--slate);}
+
+  ul{margin:6px 0 0;padding-left:17px;}
+  li{margin-bottom:5px;}
+  li b{font-weight:600;}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  .foot{margin-top:16px;padding-top:9px;border-top:1px solid var(--rule);font-size:10.5px;color:var(--slate);}
+
+  @media print{
+    html,body{background:#fff;}
+    .sheet{margin:0;box-shadow:none;width:auto;min-height:0;padding:11mm;page-break-after:always;}
+    .sheet:last-child{page-break-after:auto;}
+    @page{size:A4;margin:9mm;}
+  }
+  @media (max-width:860px){
+    .sheet{width:auto;padding:20px;margin:0;}
+    .verdict{grid-template-columns:1fr;}
+    .verdict > div{border-left:none;border-top:1px solid var(--rule);}
+    .figure{grid-template-columns:1fr;}
+    .figure > div{border-left:none;border-top:1px solid var(--rule);}
+    .split{grid-template-columns:1fr;gap:0;}
+    td.grp{width:64px;}
+  }
+</style>
 </head>
 <body>
 
-<header class="no-print">
-    <div style="display: flex; align-items: center; gap: 20px;">
-        <h1 style="margin: 0; font-size: 20px; color: var(--primary);">📊 Sales Analytics</h1>
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="tab-dashboard">대시보드</button>
-            <button class="tab-btn" data-tab="tab-report">상세 리포트</button>
-            <button class="tab-btn" data-tab="tab-verify">검증 가이드</button>
-        </div>
-    </div>
-    <div style="display: flex; gap: 10px;">
-        <button id="editColumnsBtn" class="btn" style="background: #f6a623; display: none;">컬럼 편집</button>
-        <button id="clearBtn" class="btn" style="background: #9aa0a6;">데이터 초기화</button>
-        <button id="downloadBtn" class="btn btn-success">Excel 다운로드</button>
-        <button onclick="printWithCharts()" class="btn" style="background: var(--secondary);">PDF 인쇄</button>
-    </div>
-</header>
-
-<div class="container">
-
-    <!-- 인쇄 전용 헤더 -->
-    <div class="print-header">
-        <div>
-            <div class="print-header-title">매출 분석 리포트</div>
-            <div class="print-header-sub">Sales Analytics Dashboard</div>
-        </div>
-        <div id="print-meta"></div>
-    </div>
-
-    <!-- 업로드 섹션 -->
-    <div class="upload-zone no-print" onclick="document.getElementById('fileInput').click()">
-        <p style="font-size: 18px; font-weight: 500;">분석할 데이터 파일을 업로드하세요</p>
-        <p style="color: var(--secondary); font-size: 14px;">(data.xlsx 파일을 드래그하거나 여기를 클릭)</p>
-        <p style="color: var(--secondary); font-size: 12px; margin: 6px 0 0;">필수: 주문일시, 결제금액 · 함께 선택하면 좋은 컬럼: 상품명, 사용적립금, 광고비, 회원구분, 주문횟수</p>
-        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;">
-    </div>
-
-    <!-- 대시보드 탭 -->
-    <div id="tab-dashboard" class="tab-content active">
-        <!-- KPI 카드 영역 -->
-        <div class="kpi-container">
-            <div class="kpi-card">
-                <div class="kpi-title">
-                    당월 총 매출액
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월의 모든 '결제금액' 합계<br><b>검증:</b> 쉼표나 문자가 포함된 금액 데이터를 숫자로 변환하여 합산합니다.</span></span>
-                </div>
-                <div class="kpi-value" id="kpi-revenue">0원</div>
-                <div class="kpi-trend"><span>-</span></div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">
-                    활동 회원 수
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 해당 월 주문자 중, 그 이전 달에 주문 이력이 있는 고유 고객 수<br><b>기준:</b> 주문자명이 같으면 동일인으로 봅니다.<br><b>예시:</b> 2026-07 주문자 '유정연'이 2026-01에도 주문했다면 포함, 첫 주문이면 제외.</span></span>
-                </div>
-                <div class="kpi-value" id="kpi-users">0명</div>
-                <div class="kpi-trend"><span>-</span></div>
-                <div class="kpi-sub" id="kpi-users-sub"></div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">
-                    신규 매출 비중
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> (주문횟수 0~1회인 매출 합계 / 총 매출) × 100<br><b>검증:</b> 누적 주문이 1회 이하인 고객을 신규로 분류하여 계산합니다.</span></span>
-                </div>
-                <div class="kpi-value" id="kpi-new-ratio">0%</div>
-                <div class="kpi-trend" style="color: var(--secondary)">주문 0~1회 고객</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">
-                    평균 객단가 (AOV)
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 총 매출액 / 전체 주문 건수<br><b>검증:</b> 해당 월의 1회 주문당 평균 결제 금액을 의미합니다.</span></span>
-                </div>
-                <div class="kpi-value" id="kpi-aov">0원</div>
-                <div class="kpi-trend" style="color: var(--secondary)">건당 평균 결제액</div>
-            </div>
-            <div class="kpi-card kpi-card-roas">
-                <div class="kpi-title">
-                    신규매출 ROAS
-                    <span class="tooltip">ⓘ<span class="tooltip-text"><b>산출 공식:</b> 신규 매출액 ÷ 광고비 × 100<br><b>예시:</b> 광고비 100원, 신규매출 1,000원 → ROAS 1,000%<br><b>기준:</b> 주문횟수 0~1회 고객의 매출 기준</span></span>
-                </div>
-                <div class="kpi-value" id="kpi-roas">-</div>
-                <div class="kpi-trend" id="kpi-roas-sub" style="color: var(--secondary)">광고비 대비 신규매출</div>
-            </div>
-        </div>
-
-        <!-- 차트 영역 -->
-        <div class="chart-grid">
-            <div class="chart-card">
-                <h3 style="margin-top:0">월별 매출 및 신규 매출 추이</h3>
-                <div class="chart-container"><canvas id="salesChart"></canvas></div>
-            </div>
-            <div class="chart-card">
-                <h3 style="margin-top:0">상품 카테고리 비중 (금액 기준)</h3>
-                <div class="chart-container"><canvas id="categoryChart"></canvas></div>
-            </div>
-        </div>
-
-        <!-- 전월 대비 매출액 / 주문건수 비교 -->
-        <div class="chart-card" style="margin-bottom: 30px;">
-            <div style="margin-bottom: 16px;">
-                <h3 style="margin: 0 0 4px;">📈 전월 대비 매출액 · 주문건수 비교</h3>
-                <p style="font-size: 13px; color: var(--secondary); margin: 0;">월별 매출액(막대)과 주문건수(선)를 함께 보고, 아래에서 증감률을 확인하세요.</p>
-            </div>
-            <div id="momSummary" class="badge-row"></div>
-            <div class="chart-grid" style="grid-template-columns: 1.4fr 1fr; margin-bottom: 0; gap: 20px;">
-                <div>
-                    <h4 class="sub-title">월별 매출액 · 주문건수 추이</h4>
-                    <div class="chart-container" style="height: 320px;">
-                        <canvas id="momTrendChart"></canvas>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="sub-title">전월 대비 증감률</h4>
-                    <div class="chart-container" style="height: 320px;">
-                        <canvas id="momGrowthChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 전월대비 회원유형별 매출 비교 차트 -->
-        <div class="chart-card" style="margin-bottom: 30px;">
-            <div style="margin-bottom: 16px;">
-                <h3 style="margin: 0 0 4px;">📊 회원유형별 전월 대비 매출 비교</h3>
-                <p style="font-size: 13px; color: var(--secondary); margin: 0;">당월 vs 전월 매출액 및 증감률 (회원유형 기준)</p>
-            </div>
-            <div id="memberCompSummary" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;"></div>
-            <div class="chart-container" style="height: 340px;">
-                <canvas id="memberCompChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 상품 카테고리별 월별 매출 -->
-        <div class="chart-card allow-break" style="margin-bottom: 30px;">
-            <div class="section-head">
-                <div>
-                    <h3 style="margin: 0 0 4px;">🪴 상품 카테고리별 월별 매출</h3>
-                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">근조화환 · 관엽식물(안시리움, 칼라벤자민 등) · 꽃바구니 등 상품명 키워드로 자동 분류합니다.</p>
-                </div>
-                <div class="toggle-group">
-                    <button class="toggle-btn active" data-mode="amount">금액</button>
-                    <button class="toggle-btn" data-mode="count">건수</button>
-                </div>
-            </div>
-            <div class="chart-container" style="height: 360px;">
-                <canvas id="catMonthlyChart"></canvas>
-            </div>
-            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
-                <div class="table-scroll">
-                    <table id="catMonthlyTable">
-                        <thead id="catMonthlyHead"></thead>
-                        <tbody id="catMonthlyTbody">
-                            <tr><td class="text-center">데이터를 업로드하면 카테고리별 실적이 표시됩니다.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 광고비 월별 집행 분석 -->
-        <div class="chart-card" style="margin-bottom: 30px;">
-            <div style="margin-bottom: 12px;">
-                <h3 style="margin: 0 0 4px;">📣 월별 광고비 집행 비교</h3>
-                <p style="font-size: 13px; color: var(--secondary); margin: 0;">광고비와 신규 매출을 나란히 보고, 신규 ROAS 추이로 효율을 확인하세요.</p>
-            </div>
-            <div id="adNotice" class="field-notice"></div>
-            <div id="adSummary" class="badge-row"></div>
-            <div class="chart-container" style="height: 340px;">
-                <canvas id="adCostChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 적립금 사용 분석 -->
-        <div class="chart-card allow-break" style="margin-bottom: 30px;">
-            <div style="margin-bottom: 12px;">
-                <h3 style="margin: 0 0 4px;">🎁 적립금 사용 분석</h3>
-                <p style="font-size: 13px; color: var(--secondary); margin: 0;">월별로 고객이 사용한 적립금과 매출 대비 사용 비중을 보여줍니다.</p>
-            </div>
-            <div id="pointNotice" class="field-notice"></div>
-            <div id="pointSummary" class="badge-row"></div>
-            <div class="chart-container" style="height: 320px;">
-                <canvas id="pointChart"></canvas>
-            </div>
-            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
-                <table id="pointTable">
-                    <thead>
-                        <tr>
-                            <th class="text-center">월</th>
-                            <th class="text-right">사용 적립금</th>
-                            <th class="text-right">전월 대비</th>
-                            <th class="text-right">사용 주문건수</th>
-                            <th class="text-right">건당 평균 사용액</th>
-                            <th class="text-right">매출 대비 사용률</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pointTbody">
-                        <tr><td colspan="6" class="text-center">데이터를 업로드하면 적립금 사용 내역이 표시됩니다.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 고객 주문빈도 & 결제금액대 분포 -->
-        <div class="chart-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 30px;">
-            <div class="chart-card">
-                <h3 style="margin-top:0">👤 고객 주문빈도 분포</h3>
-                <p style="font-size:13px; color:var(--secondary); margin:0 0 12px;">주문건수 구간별 고객 비중 (중복 제거 기준)</p>
-                <div class="chart-container" style="height:320px;">
-                    <canvas id="orderDistChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h3 style="margin-top:0">💳 결제금액대별 주문 건수</h3>
-                <p style="font-size:13px; color:var(--secondary); margin:0 0 12px;">결제금액 구간별 주문 건수 비중</p>
-                <div class="chart-container" style="height:320px;">
-                    <canvas id="amountDistChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- 연간 실적 요약 섹션 추가 -->
-        <div class="chart-card" id="yearly-summary-section" style="margin-bottom: 30px; display: none;">
-            <h3 style="margin-top:0">📅 연간 실적 합계 요약</h3>
-            <div class="table-wrapper">
-                <table id="yearly-summary-table">
-                    <thead>
-                        <tr>
-                            <th class="text-center">분석 연도</th>
-                            <th class="text-right">총 매출액</th>
-                            <th class="text-right">신규 매출액</th>
-                            <th class="text-right">신규 비중</th>
-                            <th class="text-right">총 주문건수</th>
-                            <th class="text-right">평균 객단가</th>
-                            <th class="text-right">광고비</th>
-                            <th class="text-right">신규 ROAS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="yearlyTbody"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- 상세 리포트 탭 -->
-    <div id="tab-report" class="tab-content">
-        <div class="chart-card">
-            <h3 style="margin-top:0">월별 회원유형 상세 리포트</h3>
-            <div class="table-wrapper">
-                <table id="reportTable">
-                    <thead>
-                        <tr>
-                            <th class="text-center">월</th>
-                            <th>회원유형</th>
-                            <th class="text-right">주문건수</th>
-                            <th class="text-right">매출액</th>
-                            <th class="text-right">신규매출액</th>
-                            <th class="text-right">광고비</th>
-                            <th class="text-right">신규 ROAS</th>
-                            <th class="text-right">평균 객단가</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reportTbody">
-                        <tr><td colspan="5" class="text-center">데이터를 업로드하면 상세 리포트가 표시됩니다.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- 검증 가이드 탭 -->
-    <div id="tab-verify" class="tab-content no-print">
-        <div class="config-panel" style="background: #e8f0fe; border-color: #1a73e8;">
-            <h3 style="margin-top:0">💡 엑셀 수식 검증 가이드</h3>
-            <p>대시보드 수치가 맞는지 엑셀에서 직접 확인해보세요. 아래 수식을 복사하여 엑셀 시트의 빈 셀에 붙여넣으세요.</p>
-            <p style="font-size: 0.9em; color: #5f6368;">* 원본 데이터 시트의 컬럼 위치를 기준으로 작성되었습니다. (A:주문일시, B:회원구분, C:결제금액, D:주문횟수, E:주문자명 가정)</p>
-        </div>
-
-        <div class="kpi-container" style="grid-template-columns: 1fr 1fr;">
-            <div class="chart-card">
-                <h4>1. 월간 총 매출액 확인</h4>
-                <div class="code-block">
-                    <code id="formula-total">=SUMPRODUCT((TEXT(A:A,"YYYY-MM")="2026-02")*(C:C))</code>
-                    <button class="btn-copy" onclick="copyFormula('formula-total')">수식 복사</button>
-                </div>
-                <p class="formula-desc">2026년 2월의 모든 결제금액(C열)을 합산합니다.</p>
-            </div>
-
-            <div class="chart-card">
-                <h4>2. 월간 신규 매출액 확인</h4>
-                <div class="code-block">
-                    <code id="formula-new">=SUMPRODUCT((TEXT(A:A,"YYYY-MM")="2026-02")*(D:D<=1)*(C:C))</code>
-                    <button class="btn-copy" onclick="copyFormula('formula-new')">수식 복사</button>
-                </div>
-                <p class="formula-desc">2026년 2월 중 주문횟수(D열)가 1 이하인 금액만 합산합니다.</p>
-            </div>
-
-            <div class="chart-card">
-                <h4>3. 월간 활동 회원수 (이전 주문 이력 보유)</h4>
-                <div class="code-block">
-                    <code id="formula-users">=LET(nm, FILTER(E2:E10000, TEXT(A2:A10000,"YYYY-MM")="2026-02"), u, UNIQUE(nm), SUM(--(COUNTIFS(E:E, u, A:A, "<"&DATE(2026,2,1))>0)))</code>
-                    <button class="btn-copy" onclick="copyFormula('formula-users')">수식 복사</button>
-                </div>
-                <p class="formula-desc">2026년 2월 주문자(E열: 주문자명) 중 2월 1일 이전에도 주문한 적이 있는 사람만 셉니다. (Excel 365용)</p>
-            </div>
-
-            <div class="chart-card">
-                <h4>4. 특정 회원유형 매출 확인</h4>
-                <div class="code-block">
-                    <code id="formula-type">=SUMIFS(C:C, A:A, ">=2026-02-01", A:A, "<=2026-02-28", B:B, "기업회원")</code>
-                    <button class="btn-copy" onclick="copyFormula('formula-type')">수식 복사</button>
-                </div>
-                <p class="formula-desc">특정 날짜 범위 내의 '기업회원' 매출액만 합산합니다.</p>
-            </div>
-        </div>
-    </div>
+<!-- 표지 -->
+<div class="sheet cover">
+  <div class="tag">종합 보고서</div>
+  <h1>채널톡(ALF) 검토 결과<br>및 비용 분석 보고</h1>
+  <div class="sub">
+    실사용 검증에서 확인된 품질 이슈와 요금제 개편에 따른 비용 전망을<br>
+    종합하여 도입 여부를 검토한 결과입니다.
+  </div>
+  <div class="doclist">
+    <div><span>1부</span><span>채널톡 검토 결과 및 미도입 의견</span></div>
+    <div><span>2부</span><span>챗봇(ALF) 도입 시 월 비용 검토</span></div>
+  </div>
+  <div class="meta-bottom">금액 단위: 원 (월 기준) · 산정 기준: 일 이용자 100명 / 월 30일</div>
 </div>
 
-    <!-- 컬럼 선택 모달 -->
-    <div id="columnModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin:0">가져올 컬럼 선택</h3>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p style="font-size: 14px; color: var(--secondary); margin-bottom: 15px;">
-                    분석에 사용할 컬럼을 선택하세요. 필수 컬럼(주문일시, 결제금액 등)은 반드시 포함되어야 합니다.
-                </p>
-                <div id="columnList" class="column-grid">
-                    <!-- 체크박스들이 여기에 생성됨 -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="selectAllBtn" class="btn" style="background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0;">전체 선택/해제</button>
-                <div style="flex-grow: 1;"></div>
-                <button id="cancelModalBtn" class="btn" style="background: #fff; color: #5f6368; border: 1px solid #dadce0; margin-right: 8px;">취소</button>
-                <button id="applyColumnsBtn" class="btn btn-success">데이터 반영하기</button>
-            </div>
-        </div>
+<!-- ============ 1부: 채널톡 검토 결과 보고 ============ -->
+<div class="sheet">
+
+  <div class="head">
+    <h1>1부. 채널톡 검토 결과 및 미도입 의견</h1>
+    <div class="meta">
+      검토 항목 · 품질 6건 / 비용 2건<br>
+      금액 단위: 원 (월 기준)
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div>
+      <div class="label">검토 결론</div>
+      <div class="call">도입하지 않음</div>
+    </div>
+    <div>
+      <div class="label">사유 요약</div>
+      <div class="reason">고객 응대에 직접 노출되는 출력 오류가 확인되었고, 상담원 연결과 ALF를 분리할 수 없는 구조로 인해 한 건의 문의에 비용이 이중 부과됩니다. 여기에 10월 요금제 개편이 예정되어 있어, 품질 개선 없이 비용만 상승합니다.</div>
+    </div>
+  </div>
+
+  <h2>1. 품질 측면 <span>실사용 검증에서 확인된 문제</span></h2>
+  <table>
+    <thead>
+      <tr><th class="grp" style="background:transparent;border-right:none;">유형</th><th colspan="2">확인된 문제</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="grp" rowspan="2">출력 정확도</td>
+        <td class="idx">1</td>
+        <td class="issue"><b>이미지 OCR 인식 정확도 미흡</b><span class="desc">고객이 업로드한 이미지의 텍스트를 정확히 읽어내지 못함</span></td>
+      </tr>
+      <tr>
+        <td class="idx">2</td>
+        <td class="issue"><b>리본 문구 오출력 발생</b><span class="desc">오탈자가 그대로 제작·배송되는 항목으로, 사고 발생 시 회복이 불가능 (예: "명복을 빖니다")</span></td>
+      </tr>
+      <tr>
+        <td class="grp" rowspan="3">기능 구조</td>
+        <td class="idx">3</td>
+        <td class="issue"><b>상담원 연결과 ALF의 분리 불가</b><span class="desc">모든 고객이 ALF를 거친 뒤에만 상담원 호출이 가능해, 고객 불편과 이중 과금이 동시에 발생</span></td>
+      </tr>
+      <tr>
+        <td class="idx">4</td>
+        <td class="issue"><b>상담 중 ALF 사용 불가</b><span class="desc">한 건의 문의에 ALF 비용과 상담톡 비용이 중복 부과되는 구조</span></td>
+      </tr>
+      <tr>
+        <td class="idx">5</td>
+        <td class="issue"><b>상담 종료 후 ALF 복귀 불가</b><span class="desc">상담원 응대가 끝나면 다시 ALF로 돌아갈 수 없어, 추가 문의 시 고객이 처음부터 다시 진입해야 하는 불편이 발생</span></td>
+      </tr>
+      <tr>
+        <td class="grp">응답 성능</td>
+        <td class="idx">6</td>
+        <td class="issue"><b>응답 속도 지연 및 중간 끊김</b><span class="desc">대화가 완결되지 않고 종료되어 상담원 재응대가 필요</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="split">
+    <div>
+      <h2>2. 비용 측면</h2>
+      <table>
+        <tbody>
+          <tr>
+            <td class="idx">1</td>
+            <td class="issue"><b>10월 요금제 개편</b><span class="desc">개편 적용 시 현재 대비 이용료 20~30% 증가 예상</span></td>
+          </tr>
+          <tr>
+            <td class="idx">2</td>
+            <td class="issue"><b>절대 비용 수준이 높음</b><span class="desc">품질 문제로 상담원 응대가 병행되는 상황에서 비용만 이중 발생</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. 요금제 개편 시 비용 전망</h2>
+      <table class="numeric">
+        <thead>
+          <tr><th>구분</th><th class="n">월 비용</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>현재 기준</td><td class="n">4,045,000</td></tr>
+          <tr><td>개편 후 (+20%)</td><td class="n">4,854,000</td></tr>
+          <tr class="total"><td>개편 후 (+30%)</td><td class="n">5,258,500</td></tr>
+        </tbody>
+      </table>
     </div>
 
-    <script src="app.js"></script>
+    <div>
+      <h2>4. 미도입 판단 근거</h2>
+      <ul>
+        <li><b>비용이 늘어나는 구조입니다.</b> ALF를 거쳐야만 상담원 연결이 가능하고 상담 중에는 ALF를 쓸 수 없어, 한 건의 문의에 비용이 두 번 부과됩니다. 챗봇 도입 목적인 응대 비용 절감과 반대로 작동합니다.</li>
+        <li><b>리스크를 감수할 항목이 있습니다.</b> 리본 문구 오출력은 사후 정정이 불가능한 영역으로, 발생 빈도가 낮더라도 허용하기 어렵습니다.</li>
+        <li><b>개선을 기다릴 유인이 낮습니다.</b> 품질 문제가 해소되지 않은 상태에서 10월 요금제 개편으로 비용만 20~30% 상승합니다.</li>
+      </ul>
+
+      <h2>5. 후속 조치</h2>
+      <ul>
+        <li>현행 상담원 응대 체계 유지, 채널톡 계약 갱신·확대 보류</li>
+        <li>OCR 정확도와 문구 검증이 가능한 대안 솔루션 재검토</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">
+    비용 전망은 현재 월 이용료 4,045,000원에 개편 예상 증가율을 단순 적용한 참고 수치입니다. 실제 인상폭은 요금제 확정안에 따라 달라질 수 있습니다.
+  </div>
+
+</div>
+
+<!-- ============ 2부: 챗봇 도입 월 비용 보고 ============ -->
+<div class="sheet">
+
+  <div class="head">
+    <h1>2부. 챗봇(ALF) 도입 시 월 비용 검토</h1>
+    <div class="meta">
+      산정 기준 · 일 이용자 100명 / 월 30일<br>
+      단위: 원 (월 기준)
+    </div>
+  </div>
+
+  <div class="figure">
+    <div>
+      <div class="label">월 총 예상 이용료</div>
+      <div class="amount accent">4,045,000<span class="won">원</span></div>
+      <div class="note">기존 플랫폼 + 챗봇 신규 도입 합계</div>
+    </div>
+    <div>
+      <div class="label">기존 플랫폼 이용료</div>
+      <div class="amount sub">2,095,000<span class="won">원</span></div>
+      <div class="note">전체의 51.8%</div>
+    </div>
+    <div>
+      <div class="label">챗봇 도입 추가분</div>
+      <div class="amount sub">1,950,000<span class="won">원</span></div>
+      <div class="note">전체의 48.2%</div>
+    </div>
+  </div>
+
+  <h2>1. 챗봇 도입 추가 비용 <span>세션 단가 × 일 이용자 100명 × 30일</span></h2>
+  <table class="numeric">
+    <thead>
+      <tr>
+        <th>구분</th>
+        <th>세션 단가<br>(24시간 기준)</th>
+        <th class="c">일 이용자</th>
+        <th class="c">월 기준</th>
+        <th>예상 비용</th>
+        <th class="tag">부가세</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>ALF (챗봇 AI)</td><td>500</td><td class="c">100</td><td class="c">30</td><td>1,500,000</td><td class="tag">VAT 포함</td></tr>
+      <tr><td>상담톡</td><td>80</td><td class="c">100</td><td class="c">30</td><td>240,000</td><td class="tag">VAT 별도</td></tr>
+      <tr><td>API 호출비</td><td>70</td><td class="c">100</td><td class="c">30</td><td>210,000</td><td class="tag">VAT 별도</td></tr>
+      <tr class="total"><td colspan="4">소계</td><td>1,950,000</td><td class="tag">—</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. 월 전체 이용료 내역</h2>
+  <table class="numeric">
+    <thead>
+      <tr><th>항목</th><th>월 금액</th><th class="tag" style="width:34%">비고</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>그로스 요금제</td><td>120,000</td><td class="tag" rowspan="4" style="vertical-align:middle;border-bottom:1px solid var(--rule);">기존 플랫폼 이용료<br><b style="color:var(--ink)">소계 2,095,000원</b></td></tr>
+      <tr><td>플랜기능 MU</td><td>160,000</td></tr>
+      <tr><td>기본 시트</td><td>75,000</td></tr>
+      <tr><td>오프레이트 시트</td><td>1,740,000</td></tr>
+      <tr><td>ALF (챗봇 AI)</td><td>1,500,000</td><td class="tag" rowspan="3" style="vertical-align:middle;">챗봇 도입 추가분<br><b style="color:var(--ink)">소계 1,950,000원</b></td></tr>
+      <tr><td>상담톡</td><td>240,000</td></tr>
+      <tr><td>API 호출비</td><td>210,000</td></tr>
+      <tr class="total"><td>총 금액</td><td>4,045,000</td><td class="tag"></td></tr>
+    </tbody>
+  </table>
+
+  <div class="split">
+    <div>
+      <h2>3. 이용자 수에 따른 변동</h2>
+      <table class="numeric">
+        <thead>
+          <tr><th>일 이용자</th><th>챗봇 비용</th><th>월 총액</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>50명</td><td>975,000</td><td>3,070,000</td></tr>
+          <tr class="total"><td>100명 (기준)</td><td>1,950,000</td><td>4,045,000</td></tr>
+          <tr><td>150명</td><td>2,925,000</td><td>5,020,000</td></tr>
+          <tr><td>200명</td><td>3,900,000</td><td>5,995,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2>4. 검토 필요 사항</h2>
+      <ul>
+        <li><b>비용 구조가 사용량에 연동됩니다.</b> 챗봇 관련 3개 항목의 합산 단가는 세션당 650원으로, 이용자가 늘면 비용도 같은 비율로 증가합니다.</li>
+        <li><b>부가세 기준이 혼재되어 있습니다.</b> 상담톡·API 호출비 450,000원은 VAT 별도로, 부가세 포함 시 약 45,000원이 추가됩니다.</li>
+        <li><b>일 이용자 100명은 가정치입니다.</b> 실제 트래픽 예측치를 확정해야 예산 정확도가 확보됩니다.</li>
+        <li><b>세션 정의 확인이 필요합니다.</b> 24시간 세션 기준이므로, 동일 이용자의 재방문이 어떻게 집계되는지에 따라 실제 비용이 달라질 수 있습니다.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">
+    금액은 모두 월 기준이며, 별도 표기가 없는 항목은 원 자료 기준을 그대로 반영했습니다. 이용자 수 변동 시나리오는 세션 단가 650원을 적용해 산출한 참고 수치입니다.
+  </div>
+
+</div>
+
 </body>
 </html>
-
