@@ -101,7 +101,10 @@
                     <p style="font-size: 13px; color: var(--secondary); margin: 0;">
                         <b>비회원</b>: 주문횟수 0회 &nbsp;|&nbsp;
                         <b>준회원</b>: 주문횟수 0회이나 동일 주문자명이 반복 주문(미가입 반복 구매) &nbsp;|&nbsp;
-                        <b>재구매 회원</b>: 주문횟수 2회 이상
+                        <b>재구매 회원</b>: 주문횟수 2회 이상 &nbsp;|&nbsp;
+                        <b>신규(1회)</b>: 주문횟수 1회(참고용)
+                        <br>※ 법인/회사명 주문은 휴대폰번호가 달라도 주문자명(회사명)이 같으면 동일 고객으로 집계합니다.
+                        ※ '실제 주문자수'는 해당 월 전체 주문자를 중복 없이 센 값으로, 신규(1회) 고객도 포함됩니다.
                     </p>
                 </div>
                 <div class="toggle-group">
@@ -123,6 +126,7 @@
                             <th class="text-center" colspan="3">비회원</th>
                             <th class="text-center" colspan="3">준회원</th>
                             <th class="text-center" colspan="3">재구매회원</th>
+                            <th class="text-center" rowspan="2">신규(1회)<br>실제인원<span style="font-weight:400;">(참고)</span></th>
                             <th class="text-center" rowspan="2">재구매 비중<br>(실제인원 기준)</th>
                         </tr>
                         <tr>
@@ -138,7 +142,7 @@
                         </tr>
                     </thead>
                     <tbody id="guestRepeatTbody">
-                        <tr><td colspan="12" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>
+                        <tr><td colspan="13" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>
                     </tbody>
                 </table>
             </div>

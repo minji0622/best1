@@ -412,15 +412,17 @@ function processData() {
         monthly[m].memberTypes[type].amount += amt; monthly[m].memberTypes[type].count += 1;
         if (orderCnt <= 1) { monthly[m].memberTypes[type].newAmount += amt; monthly[m].memberTypes[type].newCount += 1; }
 
-        // ── 비회원 / 준회원 / 재구매회원 분류 (주문횟수 기준) ──
+        // ── 비회원 / 준회원 / 재구매회원 / 신규(1회) 분류 (주문횟수 기준) ──
         // 주문횟수 0 → 비회원 (단, 동일 주문자명이 주문횟수 0으로 반복되면 준회원)
         // 주문횟수 2 이상 → 재구매회원
-        // 주문횟수 1은 이번 분류 대상에서 제외 (신규 1회 구매 고객)
+        // 주문횟수 1 → 신규(1회) (참고용으로 별도 집계. 메인 3분류 차트에는 표시하지 않지만
+        //              '실제 주문자수' 합계 및 표에는 반영하여 전체 인원과 정확히 일치시킴)
         if (!monthly[m].guestClass) {
             monthly[m].guestClass = {
                 '비회원': { amount: 0, count: 0, users: new Set() },
                 '준회원': { amount: 0, count: 0, users: new Set() },
-                '재구매회원': { amount: 0, count: 0, users: new Set() }
+                '재구매회원': { amount: 0, count: 0, users: new Set() },
+                '신규(1회)': { amount: 0, count: 0, users: new Set() }
             };
         }
         let guestClassKey = null;
@@ -428,6 +430,8 @@ function processData() {
             guestClassKey = (zeroOrderNameCount[uid] > 1) ? '준회원' : '비회원';
         } else if (orderCnt >= 2) {
             guestClassKey = '재구매회원';
+        } else {
+            guestClassKey = '신규(1회)';
         }
         if (guestClassKey) {
             const gc = monthly[m].guestClass[guestClassKey];
@@ -1228,25 +1232,32 @@ const GUEST_CLASS_COLORS = {
 function computeGuestRepeatSeries(ms) {
     const series = {};
     GUEST_CLASS_KEYS.forEach(k => { series[k] = { amounts: [], counts: [], users: [] }; });
+    const newOnce = { amounts: [], counts: [], users: [] }; // 신규(1회) 참고용 집계
     const totalAmounts = [];
-    const totalUniqueUsers = []; // 월별 실제 주문자수 (비회원+준회원+재구매회원 합산, 중복 제외)
+    const totalUniqueUsers = []; // 월별 실제 주문자수 (해당 월 전체 주문자, 중복 제외 — 신규 1회 구매 고객 포함)
 
     ms.forEach(m => {
         const data = analyzedData.monthly[m];
         const gc = data.guestClass || {};
-        const unionSet = new Set();
         GUEST_CLASS_KEYS.forEach(k => {
             const s = gc[k] || { amount: 0, count: 0, users: new Set() };
             series[k].amounts.push(s.amount);
             series[k].counts.push(s.count);
             series[k].users.push(s.users ? s.users.size : 0);
-            if (s.users) s.users.forEach(u => unionSet.add(u));
         });
+        const no = gc['신규(1회)'] || { amount: 0, count: 0, users: new Set() };
+        newOnce.amounts.push(no.amount);
+        newOnce.counts.push(no.count);
+        newOnce.users.push(no.users ? no.users.size : 0);
+
         totalAmounts.push(data.totalAmount);
-        totalUniqueUsers.push(unionSet.size);
+        // 주의: 비회원/준회원/재구매회원 3개 카테고리의 합만 세면
+        // 주문횟수가 정확히 1회(신규 첫 구매)인 고객이 빠져 실제보다 적게 집계됩니다.
+        // 따라서 해당 월에 실제로 주문한 전체 고유 고객 수(monthly[m].users)를 그대로 사용합니다.
+        totalUniqueUsers.push(data.users ? data.users.size : 0);
     });
 
-    return { series, totalAmounts, totalUniqueUsers };
+    return { series, newOnce, totalAmounts, totalUniqueUsers };
 }
 
 let guestRepeatViewMode = 'count'; // 'count' | 'amount' | 'users'
@@ -1264,12 +1275,12 @@ function renderGuestRepeatChart() {
         if (charts.guestRepeat) { charts.guestRepeat.destroy(); charts.guestRepeat = null; }
         showChartEmpty('guestRepeatChart', 'guestRepeatChart');
         if (summary) summary.innerHTML = '';
-        if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
         return;
     }
     hideChartEmpty('guestRepeatChart', 'guestRepeatChart');
 
-    const { series, totalUniqueUsers } = computeGuestRepeatSeries(ms);
+    const { series, newOnce, totalUniqueUsers } = computeGuestRepeatSeries(ms);
     const li = ms.length - 1;
     const mode = guestRepeatViewMode;
     const unit = GUEST_MODE_UNIT[mode];
@@ -1346,7 +1357,8 @@ function renderGuestRepeatChart() {
             }).join('');
             const actualUsers = totalUniqueUsers[i];
             const repeatShare = actualUsers ? (series['재구매회원'].users[i] / actualUsers * 100).toFixed(1) : '0.0';
-            return `<tr><td class="text-center">${m}</td><td class="text-right" style="font-weight:600; background:#f8f9fa;">${actualUsers.toLocaleString()}명</td>${cells}<td class="text-right">${repeatShare}%</td></tr>`;
+            const newOnceUsers = newOnce.users[i];
+            return `<tr><td class="text-center">${m}</td><td class="text-right" style="font-weight:600; background:#f8f9fa;">${actualUsers.toLocaleString()}명</td>${cells}<td class="text-right" style="color:var(--secondary);">${newOnceUsers.toLocaleString()}명</td><td class="text-right">${repeatShare}%</td></tr>`;
         }).join('');
     }
 }
