@@ -106,6 +106,7 @@
                 </div>
                 <div class="toggle-group">
                     <button class="toggle-btn active" data-guest-mode="count">건수</button>
+                    <button class="toggle-btn" data-guest-mode="users">실제 인원수</button>
                     <button class="toggle-btn" data-guest-mode="amount">금액</button>
                 </div>
             </div>
@@ -113,22 +114,30 @@
             <div class="chart-container" style="height: 340px;">
                 <canvas id="guestRepeatChart"></canvas>
             </div>
-            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
+            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0; overflow-x: auto;">
                 <table id="guestRepeatTable">
                     <thead>
                         <tr>
-                            <th class="text-center">월</th>
-                            <th class="text-right">비회원 건수</th>
-                            <th class="text-right">비회원 매출</th>
-                            <th class="text-right">준회원 건수</th>
-                            <th class="text-right">준회원 매출</th>
-                            <th class="text-right">재구매회원 건수</th>
-                            <th class="text-right">재구매회원 매출</th>
-                            <th class="text-right">재구매 비중(건수)</th>
+                            <th class="text-center" rowspan="2">월</th>
+                            <th class="text-center" colspan="3">비회원</th>
+                            <th class="text-center" colspan="3">준회원</th>
+                            <th class="text-center" colspan="3">재구매회원</th>
+                            <th class="text-center" rowspan="2">재구매 비중<br>(실제인원 기준)</th>
+                        </tr>
+                        <tr>
+                            <th class="text-right">주문건수</th>
+                            <th class="text-right">실제 인원</th>
+                            <th class="text-right">매출</th>
+                            <th class="text-right">주문건수</th>
+                            <th class="text-right">실제 인원</th>
+                            <th class="text-right">매출</th>
+                            <th class="text-right">주문건수</th>
+                            <th class="text-right">실제 인원</th>
+                            <th class="text-right">매출</th>
                         </tr>
                     </thead>
                     <tbody id="guestRepeatTbody">
-                        <tr><td colspan="8" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>
+                        <tr><td colspan="11" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>
                     </tbody>
                 </table>
             </div>

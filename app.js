@@ -1243,7 +1243,9 @@ function computeGuestRepeatSeries(ms) {
     return { series, totalAmounts };
 }
 
-let guestRepeatViewMode = 'count'; // 'count' | 'amount'
+let guestRepeatViewMode = 'count'; // 'count' | 'amount' | 'users'
+const GUEST_MODE_UNIT = { count: '건', amount: '원', users: '명' };
+const GUEST_MODE_LABEL = { count: '주문건수', amount: '매출액', users: '실제 인원수(중복 제외)' };
 
 function renderGuestRepeatChart() {
     const canvas = document.getElementById('guestRepeatChart');
@@ -1256,24 +1258,22 @@ function renderGuestRepeatChart() {
         if (charts.guestRepeat) { charts.guestRepeat.destroy(); charts.guestRepeat = null; }
         showChartEmpty('guestRepeatChart', 'guestRepeatChart');
         if (summary) summary.innerHTML = '';
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
         return;
     }
     hideChartEmpty('guestRepeatChart', 'guestRepeatChart');
 
-    const { series, totalAmounts } = computeGuestRepeatSeries(ms);
+    const { series } = computeGuestRepeatSeries(ms);
     const li = ms.length - 1;
-    const isCount = guestRepeatViewMode === 'count';
-    const unit = isCount ? '건' : '원';
-    const seriesFor = key => isCount ? series[key].counts : series[key].amounts;
+    const mode = guestRepeatViewMode;
+    const unit = GUEST_MODE_UNIT[mode];
+    const seriesFor = key => mode === 'amount' ? series[key].amounts : (mode === 'users' ? series[key].users : series[key].counts);
 
     // 요약 배지 (당월 기준)
     if (summary) {
-        const curTotal = isCount
-            ? (series['비회원'].counts[li] + series['준회원'].counts[li] + series['재구매회원'].counts[li])
-            : (series['비회원'].amounts[li] + series['준회원'].amounts[li] + series['재구매회원'].amounts[li]);
+        const curTotal = seriesFor('비회원')[li] + seriesFor('준회원')[li] + seriesFor('재구매회원')[li];
         const repeatShare = curTotal ? (seriesFor('재구매회원')[li] / curTotal * 100) : 0;
-        let badges = `<div class="comp-label">기준: <b>${ms[li]}</b>${ms.length >= 2 ? ` vs 전월 <b>${ms[li - 1]}</b>` : ''} (단위: ${isCount ? '건수' : '금액'})</div>`;
+        let badges = `<div class="comp-label">기준: <b>${ms[li]}</b>${ms.length >= 2 ? ` vs 전월 <b>${ms[li - 1]}</b>` : ''} (단위: ${GUEST_MODE_LABEL[mode]})</div>`;
         GUEST_CLASS_KEYS.forEach(key => {
             const cur = seriesFor(key)[li];
             const pre = ms.length >= 2 ? seriesFor(key)[li - 1] : 0;
@@ -1285,7 +1285,7 @@ function renderGuestRepeatChart() {
         badges += `<div class="comp-badge" style="border-left:3px solid #34a853;">
                 <span class="comp-type">재구매 회원 비중</span>
                 <span class="comp-cur">${repeatShare.toFixed(1)}%</span>
-                <span class="comp-diff" style="color:var(--secondary);">당월 ${isCount ? '건수' : '매출'} 대비</span>
+                <span class="comp-diff" style="color:var(--secondary);">당월 ${GUEST_MODE_LABEL[mode]} 대비</span>
             </div>`;
         summary.innerHTML = badges;
     }
@@ -1313,8 +1313,8 @@ function renderGuestRepeatChart() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { callback: v => isCount ? v.toLocaleString() : shortWon(v) },
-                        title: { display: true, text: isCount ? '건수' : '매출액 (원)', color: '#5f6368', font: { size: 11 } }
+                        ticks: { callback: v => mode === 'amount' ? shortWon(v) : v.toLocaleString() },
+                        title: { display: true, text: mode === 'amount' ? '매출액 (원)' : (mode === 'users' ? '실제 인원수 (명)' : '주문건수 (건)'), color: '#5f6368', font: { size: 11 } }
                     },
                     x: { ticks: monthTicks(ms) }
                 },
@@ -1326,23 +1326,18 @@ function renderGuestRepeatChart() {
         });
     }
 
-    // 표(수치) 렌더링 — 월별 비회원/준회원/재구매회원 건수·매출액
+    // 표(수치) 렌더링 — 월별 비회원/준회원/재구매회원 주문건수·실제인원·매출액
     if (tbody) {
         tbody.innerHTML = ms.map((m, i) => {
-            const guestC = series['비회원'].counts[i], guestA = series['비회원'].amounts[i];
-            const quasiC = series['준회원'].counts[i], quasiA = series['준회원'].amounts[i];
-            const repeatC = series['재구매회원'].counts[i], repeatA = series['재구매회원'].amounts[i];
-            const totalC = guestC + quasiC + repeatC;
-            return `<tr>
-                <td class="text-center">${m}</td>
-                <td class="text-right">${guestC.toLocaleString()}건</td>
-                <td class="text-right">${guestA.toLocaleString()}원</td>
-                <td class="text-right">${quasiC.toLocaleString()}건</td>
-                <td class="text-right">${quasiA.toLocaleString()}원</td>
-                <td class="text-right">${repeatC.toLocaleString()}건</td>
-                <td class="text-right">${repeatA.toLocaleString()}원</td>
-                <td class="text-right">${totalC ? (repeatC / totalC * 100).toFixed(1) : '0.0'}%</td>
-            </tr>`;
+            const cells = GUEST_CLASS_KEYS.map(key => {
+                const c = series[key].counts[i];
+                const u = series[key].users[i];
+                const a = series[key].amounts[i];
+                return `<td class="text-right">${c.toLocaleString()}건</td><td class="text-right">${u.toLocaleString()}명</td><td class="text-right">${a.toLocaleString()}원</td>`;
+            }).join('');
+            const totalUsers = series['비회원'].users[i] + series['준회원'].users[i] + series['재구매회원'].users[i];
+            const repeatShare = totalUsers ? (series['재구매회원'].users[i] / totalUsers * 100).toFixed(1) : '0.0';
+            return `<tr><td class="text-center">${m}</td>${cells}<td class="text-right">${repeatShare}%</td></tr>`;
         }).join('');
     }
 }
