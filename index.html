@@ -93,17 +93,44 @@
             </div>
         </div>
 
-        <!-- 비회원 vs 재구매 회원 매출 추이 (핵심 지표) -->
+        <!-- 비회원 · 준회원 · 재구매 회원 추이 (핵심 지표) -->
         <div class="chart-card highlight-card" style="margin-bottom: 30px;">
             <div class="section-head">
                 <div>
-                    <h3 style="margin: 0 0 4px;">🎯 월별 비회원 · 재구매 회원 매출 추이</h3>
-                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">비회원 매출과 재구매(기존) 회원 매출을 월별로 비교하는 핵심 지표입니다.</p>
+                    <h3 style="margin: 0 0 4px;">🎯 월별 비회원 · 준회원 · 재구매 회원 추이</h3>
+                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">
+                        <b>비회원</b>: 주문횟수 0회 &nbsp;|&nbsp;
+                        <b>준회원</b>: 주문횟수 0회이나 동일 주문자명이 반복 주문(미가입 반복 구매) &nbsp;|&nbsp;
+                        <b>재구매 회원</b>: 주문횟수 2회 이상
+                    </p>
+                </div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" data-guest-mode="count">건수</button>
+                    <button class="toggle-btn" data-guest-mode="amount">금액</button>
                 </div>
             </div>
             <div id="guestRepeatSummary" class="badge-row"></div>
             <div class="chart-container" style="height: 340px;">
                 <canvas id="guestRepeatChart"></canvas>
+            </div>
+            <div class="table-wrapper" style="margin-top: 18px; box-shadow: none; border: 1px solid #dadce0;">
+                <table id="guestRepeatTable">
+                    <thead>
+                        <tr>
+                            <th class="text-center">월</th>
+                            <th class="text-right">비회원 건수</th>
+                            <th class="text-right">비회원 매출</th>
+                            <th class="text-right">준회원 건수</th>
+                            <th class="text-right">준회원 매출</th>
+                            <th class="text-right">재구매회원 건수</th>
+                            <th class="text-right">재구매회원 매출</th>
+                            <th class="text-right">재구매 비중(건수)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="guestRepeatTbody">
+                        <tr><td colspan="8" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
