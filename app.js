@@ -52,7 +52,8 @@ let charts = {
     momGrowth: null,
     catMonthly: null,
     point: null,
-    adCost: null
+    adCost: null,
+    guestRepeat: null
 };
 let catChartMode = 'amount'; // 'amount' | 'count'
 
@@ -629,6 +630,7 @@ function renderCharts() {
     renderOrderDistChart();
     renderAmountDistChart();
     renderMemberCompChart();
+    renderGuestRepeatChart();
     renderMomCharts();
     renderCategoryMonthly();
     renderPointSection();
@@ -1171,6 +1173,116 @@ function renderAmountDistChart() {
     }
 }
 
+// ── 0. 월별 비회원 vs 재구매 회원 매출 추이 (핵심 지표) ──
+// '회원구분' 값에 '비회원'이 포함되면 비회원으로, 그 외 모든 회원유형은 회원으로 간주합니다.
+// 재구매 회원 매출 = 회원유형의 매출 - 신규(주문횟수 0~1회) 매출, 즉 이미 회원인 고객의 재구매 매출입니다.
+function computeGuestRepeatSeries(ms) {
+    const guestAmounts = [], repeatAmounts = [], guestCounts = [], repeatCounts = [], totalAmounts = [];
+    ms.forEach(m => {
+        const data = analyzedData.monthly[m];
+        let guestAmt = 0, guestCnt = 0, repeatAmt = 0, repeatCnt = 0;
+        Object.entries(data.memberTypes).forEach(([type, s]) => {
+            if (type.includes('비회원')) {
+                guestAmt += s.amount; guestCnt += s.count;
+            } else {
+                repeatAmt += (s.amount - s.newAmount); repeatCnt += (s.count - s.newCount);
+            }
+        });
+        guestAmounts.push(guestAmt); guestCounts.push(guestCnt);
+        repeatAmounts.push(repeatAmt); repeatCounts.push(repeatCnt);
+        totalAmounts.push(data.totalAmount);
+    });
+    return { guestAmounts, guestCounts, repeatAmounts, repeatCounts, totalAmounts };
+}
+
+function renderGuestRepeatChart() {
+    const canvas = document.getElementById('guestRepeatChart');
+    const ctx = canvas?.getContext('2d');
+    const summary = document.getElementById('guestRepeatSummary');
+    const ms = Object.keys(analyzedData.monthly).sort();
+
+    if (!ms.length) {
+        if (charts.guestRepeat) { charts.guestRepeat.destroy(); charts.guestRepeat = null; }
+        showChartEmpty('guestRepeatChart', 'guestRepeatChart');
+        if (summary) summary.innerHTML = '';
+        return;
+    }
+    hideChartEmpty('guestRepeatChart', 'guestRepeatChart');
+
+    const { guestAmounts, repeatAmounts, totalAmounts } = computeGuestRepeatSeries(ms);
+    const li = ms.length - 1;
+
+    // 요약 배지 (당월 기준)
+    if (summary) {
+        const curTotal = totalAmounts[li] || 0;
+        const repeatShare = curTotal ? (repeatAmounts[li] / curTotal * 100) : 0;
+        let badges = `<div class="comp-label">기준: <b>${ms[li]}</b>${ms.length >= 2 ? ` vs 전월 <b>${ms[li - 1]}</b>` : ''}</div>`;
+        badges += ms.length >= 2
+            ? diffBadge(guestAmounts[li], guestAmounts[li - 1], '원', '비회원 매출')
+            : `<div class="comp-badge" style="border-left:3px solid #f9ab00;"><span class="comp-type">비회원 매출</span><span class="comp-cur">${guestAmounts[li].toLocaleString()}원</span></div>`;
+        badges += ms.length >= 2
+            ? diffBadge(repeatAmounts[li], repeatAmounts[li - 1], '원', '재구매 회원 매출')
+            : `<div class="comp-badge" style="border-left:3px solid #1a73e8;"><span class="comp-type">재구매 회원 매출</span><span class="comp-cur">${repeatAmounts[li].toLocaleString()}원</span></div>`;
+        badges += `<div class="comp-badge" style="border-left:3px solid #34a853;">
+                <span class="comp-type">재구매 회원 비중</span>
+                <span class="comp-cur">${repeatShare.toFixed(1)}%</span>
+                <span class="comp-diff" style="color:var(--secondary);">당월 총 매출 대비</span>
+            </div>`;
+        summary.innerHTML = badges;
+    }
+
+    if (ctx) {
+        if (charts.guestRepeat) charts.guestRepeat.destroy();
+        charts.guestRepeat = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ms,
+                datasets: [
+                    {
+                        label: '비회원 매출',
+                        data: guestAmounts,
+                        borderColor: '#f9ab00',
+                        backgroundColor: 'rgba(249,171,0,0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2.5
+                    },
+                    {
+                        label: '재구매 회원 매출',
+                        data: repeatAmounts,
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26,115,232,0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => shortWon(v) },
+                        title: { display: true, text: '매출액 (원)', color: '#5f6368', font: { size: 11 } }
+                    },
+                    x: { ticks: monthTicks(ms) }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } }
+                }
+            }
+        });
+    }
+}
+
 function renderMemberCompChart() {
     const canvas = document.getElementById('memberCompChart');
     const ctx = canvas?.getContext('2d');
@@ -1490,7 +1602,7 @@ function setPrintMeta() {
 
 function replaceCanvasWithImage() {
     _printBackups = [];
-    const canvasIds = ['salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart', 'memberCompChart',
+    const canvasIds = ['guestRepeatChart', 'salesChart', 'categoryChart', 'orderDistChart', 'amountDistChart', 'memberCompChart',
                        'momTrendChart', 'momGrowthChart', 'catMonthlyChart', 'pointChart', 'adCostChart'];
 
     canvasIds.forEach(id => {

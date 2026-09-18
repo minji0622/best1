@@ -93,6 +93,20 @@
             </div>
         </div>
 
+        <!-- 비회원 vs 재구매 회원 매출 추이 (핵심 지표) -->
+        <div class="chart-card highlight-card" style="margin-bottom: 30px;">
+            <div class="section-head">
+                <div>
+                    <h3 style="margin: 0 0 4px;">🎯 월별 비회원 · 재구매 회원 매출 추이</h3>
+                    <p style="font-size: 13px; color: var(--secondary); margin: 0;">비회원 매출과 재구매(기존) 회원 매출을 월별로 비교하는 핵심 지표입니다.</p>
+                </div>
+            </div>
+            <div id="guestRepeatSummary" class="badge-row"></div>
+            <div class="chart-container" style="height: 340px;">
+                <canvas id="guestRepeatChart"></canvas>
+            </div>
+        </div>
+
         <!-- 차트 영역 -->
         <div class="chart-grid">
             <div class="chart-card">
