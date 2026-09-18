@@ -332,6 +332,8 @@ if (uploadZone) {
 }
 
 // 고객 식별 키: 주문자명 우선 (없으면 주문자ID)
+// ※ 법인/회사명 주문의 경우처럼 같은 이름(회사명)에 휴대폰번호 등 다른 정보가 달라도
+//   '주문자명'이 일치하면 동일 고객(동일인)으로 간주합니다. (휴대폰번호는 식별에 사용하지 않음)
 function customerKey(nr) {
     const name = nr.주문자명 != null ? String(nr.주문자명).replace(/\s+/g, '').trim() : '';
     if (name) return name;
@@ -1227,20 +1229,24 @@ function computeGuestRepeatSeries(ms) {
     const series = {};
     GUEST_CLASS_KEYS.forEach(k => { series[k] = { amounts: [], counts: [], users: [] }; });
     const totalAmounts = [];
+    const totalUniqueUsers = []; // 월별 실제 주문자수 (비회원+준회원+재구매회원 합산, 중복 제외)
 
     ms.forEach(m => {
         const data = analyzedData.monthly[m];
         const gc = data.guestClass || {};
+        const unionSet = new Set();
         GUEST_CLASS_KEYS.forEach(k => {
             const s = gc[k] || { amount: 0, count: 0, users: new Set() };
             series[k].amounts.push(s.amount);
             series[k].counts.push(s.count);
             series[k].users.push(s.users ? s.users.size : 0);
+            if (s.users) s.users.forEach(u => unionSet.add(u));
         });
         totalAmounts.push(data.totalAmount);
+        totalUniqueUsers.push(unionSet.size);
     });
 
-    return { series, totalAmounts };
+    return { series, totalAmounts, totalUniqueUsers };
 }
 
 let guestRepeatViewMode = 'count'; // 'count' | 'amount' | 'users'
@@ -1258,12 +1264,12 @@ function renderGuestRepeatChart() {
         if (charts.guestRepeat) { charts.guestRepeat.destroy(); charts.guestRepeat = null; }
         showChartEmpty('guestRepeatChart', 'guestRepeatChart');
         if (summary) summary.innerHTML = '';
-        if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="12" class="text-center">데이터를 업로드하면 표시됩니다.</td></tr>`;
         return;
     }
     hideChartEmpty('guestRepeatChart', 'guestRepeatChart');
 
-    const { series } = computeGuestRepeatSeries(ms);
+    const { series, totalUniqueUsers } = computeGuestRepeatSeries(ms);
     const li = ms.length - 1;
     const mode = guestRepeatViewMode;
     const unit = GUEST_MODE_UNIT[mode];
@@ -1271,9 +1277,12 @@ function renderGuestRepeatChart() {
 
     // 요약 배지 (당월 기준)
     if (summary) {
-        const curTotal = seriesFor('비회원')[li] + seriesFor('준회원')[li] + seriesFor('재구매회원')[li];
+        const curTotal = mode === 'users' ? totalUniqueUsers[li] : (seriesFor('비회원')[li] + seriesFor('준회원')[li] + seriesFor('재구매회원')[li]);
         const repeatShare = curTotal ? (seriesFor('재구매회원')[li] / curTotal * 100) : 0;
         let badges = `<div class="comp-label">기준: <b>${ms[li]}</b>${ms.length >= 2 ? ` vs 전월 <b>${ms[li - 1]}</b>` : ''} (단위: ${GUEST_MODE_LABEL[mode]})</div>`;
+        badges += ms.length >= 2
+            ? diffBadge(totalUniqueUsers[li], totalUniqueUsers[li - 1], '명', '실제 주문자수(합계, 중복제외)')
+            : `<div class="comp-badge" style="border-left:3px solid #5f6368;"><span class="comp-type">실제 주문자수(합계, 중복제외)</span><span class="comp-cur">${totalUniqueUsers[li].toLocaleString()}명</span></div>`;
         GUEST_CLASS_KEYS.forEach(key => {
             const cur = seriesFor(key)[li];
             const pre = ms.length >= 2 ? seriesFor(key)[li - 1] : 0;
@@ -1335,9 +1344,9 @@ function renderGuestRepeatChart() {
                 const a = series[key].amounts[i];
                 return `<td class="text-right">${c.toLocaleString()}건</td><td class="text-right">${u.toLocaleString()}명</td><td class="text-right">${a.toLocaleString()}원</td>`;
             }).join('');
-            const totalUsers = series['비회원'].users[i] + series['준회원'].users[i] + series['재구매회원'].users[i];
-            const repeatShare = totalUsers ? (series['재구매회원'].users[i] / totalUsers * 100).toFixed(1) : '0.0';
-            return `<tr><td class="text-center">${m}</td>${cells}<td class="text-right">${repeatShare}%</td></tr>`;
+            const actualUsers = totalUniqueUsers[i];
+            const repeatShare = actualUsers ? (series['재구매회원'].users[i] / actualUsers * 100).toFixed(1) : '0.0';
+            return `<tr><td class="text-center">${m}</td><td class="text-right" style="font-weight:600; background:#f8f9fa;">${actualUsers.toLocaleString()}명</td>${cells}<td class="text-right">${repeatShare}%</td></tr>`;
         }).join('');
     }
 }
